@@ -12,8 +12,9 @@ import 'package:mobile_app/modules/home/models/dashboard_data.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:decimal/decimal.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/modules/home/screens/spending_heatmap_widget.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   final bool showTodayOnly;
@@ -133,7 +134,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List items = data['items'];
+        final List items = data['data'] ?? [];
         final nextPage = data['next_page'];
 
         if (mounted) {
@@ -243,6 +244,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   },
                                   child: _buildMonthTrendChart(context, dashboard.data!.monthWiseTrend, dashboard.maskingFactor),
                                 ),
+                                const SizedBox(height: 32),
+                                _buildSectionTitle(context, 'Spending Geographical Heatmap'),
+                                const SizedBox(height: 12),
+                                const SpendingHeatmapWidget(),
                                 const SizedBox(height: 32),
                                 _buildSectionTitle(context, 'Daily Activity (This Month)'),
                                 const SizedBox(height: 12),
@@ -391,15 +396,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final data = dashboard.data!;
     final summary = data.summary;
     
-    // Calculate Today vs Yesterday Trend
-    final dailyTrend = summary.yesterdayTotal > Decimal.zero 
-        ? ((summary.todayTotal.toDouble() - summary.yesterdayTotal.toDouble()) / summary.yesterdayTotal.toDouble() * 100)
-        : 0.0;
-    
     // Status color for today vs daily budget
-    final dailyHealthColor = summary.todayTotal > summary.dailyBudgetLimit 
-        ? AppTheme.danger 
-        : (summary.todayTotal.toDouble() > summary.dailyBudgetLimit.toDouble() * 0.8 ? AppTheme.warning : AppTheme.success);
 
     return Column(
       children: [
@@ -674,7 +671,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           maxY: maxY,
           barGroups: trend.asMap().entries.map((e) {
             final isSelected = e.value.isSelected;
-            final isOverBudget = e.value.spent > e.value.budget && e.value.budget > Decimal.zero;
             
             return BarChartGroupData(
               x: e.key,
