@@ -8,11 +8,14 @@ import 'package:mobile_app/modules/home/models/unparsed_message.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
 import 'package:decimal/decimal.dart';
+import 'package:mobile_app/core/errors/either.dart';
+import 'package:mobile_app/core/errors/failures.dart';
+import 'package:mobile_app/core/utils/network_resilience.dart';
 
-class DashboardService extends ChangeNotifier {
+class DashboardService extends ChangeNotifier with NetworkResilience {
   final AppConfig _config;
   final AuthService _auth;
 
@@ -171,6 +174,7 @@ class DashboardService extends ChangeNotifier {
       _fetchDashboardTrends(),
       _fetchDashboardCategories(),
       _fetchDashboardInvestments(),
+      _fetchCalendarHeatmap(),
     ];
 
     try {
@@ -191,103 +195,145 @@ class DashboardService extends ChangeNotifier {
   }
 
   Future<void> _fetchDashboardSummary() async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/summary')
-        .replace(queryParameters: _getQueryParams());
-    
-    final response = await http.get(url, headers: _getHeaders());
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      final summary = DashboardSummary.fromJson(data['summary']);
-      final budget = BudgetSummary.fromJson(data['budget']);
-      final txns = (data['recent_transactions'] as List)
-          .map((i) => RecentTransaction.fromJson(i))
-          .where((t) => !t.isHidden)
-          .toList();
-      
-      _updateData((d) => d.copyWith(
-        summary: summary,
-        budget: budget,
-        recentTransactions: txns,
-        pendingTriageCount: data['pending_triage_count'],
-        pendingTrainingCount: data['pending_training_count'] ?? 0,
-        familyMembersCount: data['family_members_count'],
-      ));
-    }
+    final result = await callWithResilience<Map<String, dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/summary')
+            .replace(queryParameters: _getQueryParams()),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body),
+    );
+
+    result.fold(
+      (failure) => _error = failure.message,
+      (data) {
+        final summary = DashboardSummary.fromJson(data['summary']);
+        final budget = BudgetSummary.fromJson(data['budget']);
+        final txns = (data['recent_transactions'] as List)
+            .map((i) => RecentTransaction.fromJson(i))
+            .where((t) => !t.isHidden)
+            .toList();
+        
+        _updateData((d) => d.copyWith(
+          summary: summary,
+          budget: budget,
+          recentTransactions: txns,
+          pendingTriageCount: data['pending_triage_count'],
+          pendingTrainingCount: data['pending_training_count'] ?? 0,
+          familyMembersCount: data['family_members_count'],
+        ));
+      },
+    );
   }
 
   Future<void> _fetchDashboardTrends() async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/trends')
-        .replace(queryParameters: _getQueryParams());
-    
-    final response = await http.get(url, headers: _getHeaders());
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      final spendingTrend = (data['spending_trend'] as List)
-          .map((i) => SpendingTrendItem.fromJson(i))
-          .toList();
-      final monthWiseTrend = (data['month_wise_trend'] as List)
-          .map((i) => MonthTrendItem.fromJson(i))
-          .toList();
-      
-      _updateData((d) => d.copyWith(
-        spendingTrend: spendingTrend,
-        monthWiseTrend: monthWiseTrend,
-      ));
-    } else {
-      throw Exception('Trends failed: ${response.statusCode}');
-    }
+    final result = await callWithResilience<Map<String, dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/trends')
+            .replace(queryParameters: _getQueryParams()),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body),
+    );
+
+    result.fold(
+      (failure) => _error = failure.message,
+      (data) {
+        final spendingTrend = (data['spending_trend'] as List)
+            .map((i) => SpendingTrendItem.fromJson(i))
+            .toList();
+        final monthWiseTrend = (data['month_wise_trend'] as List)
+            .map((i) => MonthTrendItem.fromJson(i))
+            .toList();
+        
+        _updateData((d) => d.copyWith(
+          spendingTrend: spendingTrend,
+          monthWiseTrend: monthWiseTrend,
+        ));
+      },
+    );
   }
 
   Future<void> _fetchDashboardCategories() async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/categories')
-        .replace(queryParameters: _getQueryParams());
-    
-    final response = await http.get(url, headers: _getHeaders());
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      final categories = (data['category_distribution'] as List)
-          .map((i) => CategoryPieItem.fromJson(i))
-          .toList();
-      
-      _updateData((d) => d.copyWith(categoryDistribution: categories));
-    } else {
-      throw Exception('Category breakdown failed: ${response.statusCode}');
-    }
+    final result = await callWithResilience<Map<String, dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/categories')
+            .replace(queryParameters: _getQueryParams()),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body),
+    );
+
+    result.fold(
+      (failure) => _error = failure.message,
+      (data) {
+        final categories = (data['category_distribution'] as List)
+            .map((i) => CategoryPieItem.fromJson(i))
+            .toList();
+        
+        _updateData((d) => d.copyWith(categoryDistribution: categories));
+      },
+    );
   }
 
   Future<void> _fetchDashboardInvestments() async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/investments')
-        .replace(queryParameters: _getQueryParams());
-    
-    final response = await http.get(url, headers: _getHeaders());
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      InvestmentSummary? investmentSummary;
-      if (data['investment_summary'] != null) {
-        investmentSummary = InvestmentSummary.fromJson(data['investment_summary']);
-      }
-      
-      _updateData((d) => d.copyWith(investmentSummary: investmentSummary));
-    }
+    final result = await callWithResilience<Map<String, dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/investments')
+            .replace(queryParameters: _getQueryParams()),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body),
+    );
+
+    result.fold(
+      (failure) => _error = failure.message,
+      (data) {
+        InvestmentSummary? investmentSummary;
+        if (data['investment_summary'] != null) {
+          investmentSummary = InvestmentSummary.fromJson(data['investment_summary']);
+        }
+        _updateData((d) => d.copyWith(investmentSummary: investmentSummary));
+      },
+    );
   }
 
-  Future<List<UnparsedMessage>> fetchTrainingQueue({String? search}) async {
-    final Map<String, String> queryParams = {
-      if (search != null && search.isNotEmpty) 'search': search,
-    };
-    final url = Uri.parse('${_config.backendUrl}/api/v1/ingestion/training')
-        .replace(queryParameters: queryParams);
-    final response = await http.get(url, headers: _getHeaders());
-    
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      final List items = data['data'] ?? [];
-      return items.map((i) => UnparsedMessage.fromJson(i)).toList();
-    }
-    throw Exception('Failed to fetch training queue');
+  Future<void> _fetchCalendarHeatmap() async {
+    final result = await callWithResilience<Map<String, dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/heatmap/calendar')
+            .replace(queryParameters: _getQueryParams()),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body),
+    );
+
+    result.fold(
+      (failure) => _error = failure.message,
+      (data) {
+        final Map<String, Decimal> heatmap = data.map((k, v) => MapEntry(k, Decimal.parse(v.toString())));
+        _updateData((d) => d.copyWith(calendarHeatmap: heatmap));
+      },
+    );
   }
 
-  Future<void> finalizeTraining({
+  Future<Either<Failure, List<UnparsedMessage>>> fetchTrainingQueue({String? search}) async {
+    return callWithResilience<List<UnparsedMessage>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training').replace(queryParameters: {
+          if (search != null && search.isNotEmpty) 'search': search,
+        }),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) {
+        final data = jsonDecode(body);
+        final List items = data['data'] ?? [];
+        return items.map((i) => UnparsedMessage.fromJson(i)).toList();
+      },
+    );
+  }
+
+  Future<Either<Failure, Unit>> finalizeTraining({
     required String messageId,
     required DateTime date,
     required String description,
@@ -299,66 +345,117 @@ class DashboardService extends ChangeNotifier {
     bool createRule = true,
     bool applyToUnparsed = true,
   }) async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/label');
-    final response = await http.post(
-      url,
-      headers: _getHeaders(),
-      body: jsonEncode({
-        'date': date.toUtc().toIso8601String(),
-        'recipient': description,
-        'amount': amount,
-        'category': category,
-        'account_id': accountId,
-        'account_mask': accountMask,
-        'type': type,
-        'generate_pattern': createRule,
-        'apply_to_unparsed': applyToUnparsed,
-      }),
+    return callWithResilience<Unit>(
+      call: () => http.post(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/label'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'date': date.toUtc().toIso8601String(),
+          'recipient': description,
+          'amount': amount,
+          'category': category,
+          'account_id': accountId,
+          'account_mask': accountMask,
+          'type': type,
+          'generate_pattern': createRule,
+          'apply_to_unparsed': applyToUnparsed,
+        }),
+      ),
+      onSuccess: (_) => unit,
     );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to finalize training: ${response.body}');
-    }
-    
-    refresh();
   }
 
-  Future<List<dynamic>> fetchAccounts() async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/accounts');
-    final response = await http.get(url, headers: _getHeaders());
-    if (response.statusCode == 200) {
-      return jsonDecode(utf8.decode(response.bodyBytes))['data'];
-    }
-    return [];
-  }
-
-  Future<void> dismissTraining(String messageId) async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/dismiss');
-    final response = await http.post(
-      url, 
-      headers: _getHeaders(),
-      body: jsonEncode({'create_rule': false})
+  Future<Either<Failure, List<dynamic>>> fetchAccounts() async {
+    return callWithResilience<List<dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/accounts'),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body)['data'] as List<dynamic>,
     );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to dismiss training');
-    }
-    
-    refresh();
   }
 
-  Future<Map<String, dynamic>> aiForensicParse(String content) async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/ai/forensic-parse')
-        .replace(queryParameters: {'content': content});
-    
-    final response = await http.get(url, headers: _getHeaders());
-    if (response.statusCode == 200) {
-      return jsonDecode(utf8.decode(response.bodyBytes));
-    }
-    
-    final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-    final message = errorData['detail'] ?? 'AI Forensic failed';
-    throw Exception(message);
+  Future<Either<Failure, Unit>> dismissTraining(String messageId) async {
+    return callWithResilience<Unit>(
+      call: () => http.post(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/dismiss'),
+        headers: _getHeaders(),
+        body: jsonEncode({'create_rule': false}),
+      ),
+      onSuccess: (_) => unit,
+    );
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> aiForensicParse(String content) async {
+    return callWithResilience<Map<String, dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/ai/forensic-parse')
+            .replace(queryParameters: {'content': content}),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body),
+    );
+  }
+
+  Future<Either<Failure, List<dynamic>>> fetchSpamFilters() async {
+    return callWithResilience<List<dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/spam'),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body)['data'] ?? [],
+    );
+  }
+
+  Future<Either<Failure, Unit>> markAsSpam(String messageId) async {
+    return callWithResilience<Unit>(
+      call: () => http.post(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/mark-as-spam'),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (_) => unit,
+    );
+  }
+
+  Future<Either<Failure, Unit>> bulkIgnore(List<String> ids) async {
+    return callWithResilience<Unit>(
+      call: () => http.post(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/bulk-dismiss'),
+        headers: _getHeaders(),
+        body: jsonEncode({'ids': ids, 'create_rule': false}),
+      ),
+      onSuccess: (_) => unit,
+    );
+  }
+
+  Future<Either<Failure, Unit>> deleteSpamFilter(String filterId) async {
+    return callWithResilience<Unit>(
+      call: () => http.delete(
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/spam/$filterId'),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (_) => unit,
+    );
+  }
+
+  Future<Either<Failure, List<dynamic>>> fetchGeographicalHeatmap({
+    required DateTime start,
+    required DateTime end,
+    String? memberId,
+  }) async {
+    return callWithResilience<List<dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/heatmap').replace(
+          queryParameters: {
+            'start_date': start.toIso8601String(),
+            'end_date': end.toIso8601String(),
+            if (memberId != null) 'member_id': memberId,
+          },
+        ),
+        headers: _getHeaders(),
+      ),
+      onSuccess: (body) => jsonDecode(body) as List<dynamic>,
+    );
   }
 
   void _updateData(DashboardData Function(DashboardData) updater) {

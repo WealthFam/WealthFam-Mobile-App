@@ -19,6 +19,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
 import 'package:decimal/decimal.dart';
 import 'package:mobile_app/modules/home/screens/add_transaction_screen.dart';
+import 'package:mobile_app/modules/home/screens/calendar_heatmap_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -146,6 +147,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               SliverToBoxAdapter(child: _buildSummarySection(context, dashboard.data!.summary, formatAmount)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: () {
+                    final year = dashboard.selectedYear ?? DateTime.now().year;
+                    final month = dashboard.selectedMonth ?? DateTime.now().month;
+                    final lastDay = DateTime(year, month + 1, 0);
+                    return CalendarHeatmapWidget(
+                      data: dashboard.data!.calendarHeatmap,
+                      maskingFactor: dashboard.maskingFactor,
+                      endDate: lastDay,
+                    );
+                  }(),
+                ),
+              ),
               SliverToBoxAdapter(child: _buildInvestmentsEntry(context, dashboard.data!.investmentSummary, formatAmount)),
                   if (dashboard.data!.pendingTriageCount > 0 || dashboard.data!.pendingTrainingCount > 0)
                     SliverToBoxAdapter(

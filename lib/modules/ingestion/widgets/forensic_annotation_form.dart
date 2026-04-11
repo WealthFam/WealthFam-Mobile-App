@@ -9,6 +9,7 @@ import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
 import 'package:decimal/decimal.dart';
+import 'package:mobile_app/core/errors/either.dart';
 
 class ForensicAnnotationForm extends StatefulWidget {
   final UnparsedMessage message;
@@ -56,73 +57,81 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
 
   void _runAIForensic() async {
     setState(() => _isAIParsing = true);
-    try {
-      final result = await context.read<DashboardService>().aiForensicParse(widget.message.content);
-      setState(() {
-        _amountController.text = (result['amount'] ?? '').toString();
-        _descController.text = result['description'] ?? '';
-        _category = result['category'] ?? 'Uncategorized';
-        _type = result['type'] ?? _type;
-        
-        _isAmountAI = true;
-        _isDescAI = true;
-        _isCategoryAI = true;
-        _isAIParsing = false;
-
-        // Auto-select account if mask matches
-        final mask = result['account_mask']?.toString();
-        if (mask != null && mask.length >= 4) {
-          final last4 = mask.substring(mask.length - 4);
-          for (var acc in _accounts) {
-            final accName = acc['name'].toString().toLowerCase();
-            if (accName.contains(last4)) {
-              _selectedAccountId = acc['id'] as String;
-              _selectedAccountName = acc['name'] as String;
-              break;
-            }
-          }
-        }
-      });
-      
-      // Reset highlighting after a delay
-      Future.delayed(const Duration(seconds: 3), () {
+    final dashboard = context.read<DashboardService>();
+    final result = await dashboard.aiForensicParse(widget.message.content);
+    
+    result.fold(
+      (failure) {
         if (mounted) {
           setState(() {
-            _isAmountAI = false;
-            _isDescAI = false;
-            _isCategoryAI = false;
+            _isAIParsing = false;
+            _errorMessage = failure.message;
+          });
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) setState(() => _errorMessage = null);
           });
         }
-      });
-    } catch (e) {
-      debugPrint('AI Forensic Error Catch: $e');
-      if (mounted) {
-        setState(() {
-          _isAIParsing = false;
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
-        });
-        
-        // Clear error after 5 seconds
-        Future.delayed(const Duration(seconds: 5), () {
-          if (mounted) {
-            setState(() => _errorMessage = null);
-          }
-        });
-      }
-    }
+      },
+      (data) {
+        if (mounted) {
+          setState(() {
+            _amountController.text = (data['amount'] ?? '').toString();
+            _descController.text = data['description'] ?? '';
+            _category = data['category'] ?? 'Uncategorized';
+            _type = data['type'] ?? _type;
+            
+            _isAmountAI = true;
+            _isDescAI = true;
+            _isCategoryAI = true;
+            _isAIParsing = false;
+
+            // Auto-select account if mask matches
+            final mask = data['account_mask']?.toString();
+            if (mask != null && mask.length >= 4) {
+              final last4 = mask.substring(mask.length - 4);
+              for (var acc in _accounts) {
+                final accName = acc['name'].toString().toLowerCase();
+                if (accName.contains(last4)) {
+                  _selectedAccountId = acc['id'] as String;
+                  _selectedAccountName = acc['name'] as String;
+                  break;
+                }
+              }
+            }
+          });
+          
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) {
+              setState(() {
+                _isAmountAI = false;
+                _isDescAI = false;
+                _isCategoryAI = false;
+              });
+            }
+          });
+        }
+      },
+    );
   }
 
   List<dynamic> _accounts = [];
   bool _isLoadingAccounts = true;
 
   void _loadAccounts() async {
-    final accs = await context.read<DashboardService>().fetchAccounts();
-    if (mounted) {
-      setState(() {
-        _accounts = accs;
-        _isLoadingAccounts = false;
-      });
-    }
+    final dashboard = context.read<DashboardService>();
+    final result = await dashboard.fetchAccounts();
+    
+    result.fold(
+      (failure) => debugPrint('Error loading accounts: ${failure.message}'),
+      (accs) {
+        if (mounted) {
+          setState(() {
+            _accounts = accs;
+            _isLoadingAccounts = false;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _selectDate() async {
@@ -145,22 +154,26 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
       return;
     }
 
-    try {
-      await context.read<DashboardService>().finalizeTraining(
-        messageId: widget.message.id,
-        date: _date,
-        description: _descController.text,
-        amount: Decimal.tryParse(_amountController.text) ?? Decimal.zero,
-        category: _category,
-        accountId: _selectedAccountId,
-        type: _type,
-        createRule: _createRule,
-      );
-      widget.onComplete();
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-    }
+    final dashboard = context.read<DashboardService>();
+    final result = await dashboard.finalizeTraining(
+      messageId: widget.message.id,
+      date: _date,
+      description: _descController.text,
+      amount: Decimal.tryParse(_amountController.text) ?? Decimal.zero,
+      category: _category,
+      accountId: _selectedAccountId,
+      type: _type,
+      createRule: _createRule,
+    );
+
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message))),
+      (_) {
+        widget.onComplete();
+        dashboard.refresh(); // Refresh dashboard to update counts
+        if (mounted) Navigator.pop(context);
+      },
+    );
   }
 
   @override

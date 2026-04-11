@@ -6,6 +6,9 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/core/errors/either.dart';
+import 'package:mobile_app/core/errors/failures.dart';
+import 'package:decimal/decimal.dart';
 
 class VaultScreen extends StatefulWidget {
   const VaultScreen({super.key});
@@ -139,10 +142,17 @@ class _VaultScreenState extends State<VaultScreen> {
           TextButton(
             onPressed: () async {
               if (controller.text.isNotEmpty) {
-                final success = await service.createFolder(controller.text);
-                if (success && mounted) {
-                  Navigator.pop(context);
-                }
+                final result = await service.createFolder(controller.text);
+                result.fold(
+                  (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                    );
+                  },
+                  (_) {
+                    if (mounted) Navigator.pop(context);
+                  },
+                );
               }
             },
             child: const Text('Create'),
@@ -170,10 +180,17 @@ class _VaultScreenState extends State<VaultScreen> {
           TextButton(
             onPressed: () async {
               if (controller.text.isNotEmpty && controller.text != doc.filename) {
-                final success = await service.renameDocument(doc.id, controller.text);
-                if (success && mounted) {
-                  Navigator.pop(context);
-                }
+                final result = await service.renameDocument(doc.id, controller.text);
+                result.fold(
+                  (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                    );
+                  },
+                  (_) {
+                    if (mounted) Navigator.pop(context);
+                  },
+                );
               }
             },
             child: const Text('Rename'),
@@ -215,16 +232,25 @@ class _VaultScreenState extends State<VaultScreen> {
         final file = result.files.single;
         final service = context.read<VaultService>();
         
-        final success = await service.uploadDocument(
+        final uploadResult = await service.uploadDocument(
           filePath: file.path!,
           fileName: file.name,
         );
 
-        if (success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Uploaded ${file.name}')),
-          );
-        }
+        uploadResult.fold(
+          (failure) {
+             ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Upload error: ${failure.message}'), backgroundColor: AppTheme.danger),
+            );
+          },
+          (_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Uploaded ${file.name}')),
+              );
+            }
+          },
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -469,12 +495,21 @@ class _VaultScreenState extends State<VaultScreen> {
                 title: const Text('Download'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final path = await service.saveDocument(doc);
-                  if (path != null && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Saved to: $path')),
-                    );
-                  }
+                  final result = await service.saveDocument(doc);
+                  result.fold(
+                    (failure) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                      );
+                    },
+                    (path) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Saved to: $path')),
+                        );
+                      }
+                    },
+                  );
                 },
               ),
               ListTile(
@@ -515,8 +550,17 @@ class _VaultScreenState extends State<VaultScreen> {
                   ),
                 );
                 if (confirm == true) {
-                  await service.deleteDocument(doc.id);
-                  if (mounted) Navigator.pop(context);
+                  final result = await service.deleteDocument(doc.id);
+                  result.fold(
+                    (failure) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                      );
+                    },
+                    (_) {
+                      if (mounted) Navigator.pop(context);
+                    },
+                  );
                 }
               },
             ),
@@ -528,10 +572,19 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Future<void> _openDocument(VaultDocument doc, VaultService service) async {
     try {
-      final path = await service.saveDocument(doc);
-      if (path != null) {
-        await OpenFilex.open(path);
-      }
+      final result = await service.saveDocument(doc);
+      result.fold(
+        (failure) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+            );
+          }
+        },
+        (path) async {
+          await OpenFilex.open(path);
+        },
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

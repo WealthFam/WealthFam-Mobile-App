@@ -17,6 +17,7 @@ import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
 import 'package:mobile_app/modules/home/screens/add_transaction_screen.dart';
 import 'package:mobile_app/modules/home/screens/spending_heatmap_widget.dart';
+import 'package:mobile_app/modules/home/screens/calendar_heatmap_widget.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   final bool showTodayOnly;
@@ -247,9 +248,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   child: _buildMonthTrendChart(context, dashboard.data!.monthWiseTrend, dashboard.maskingFactor),
                                 ),
                                 const SizedBox(height: 32),
-                                _buildSectionTitle(context, 'Spending Geographical Heatmap'),
+                                _buildSectionTitle(context, 'Fiscal Pulse (Annual Heatmap)'),
                                 const SizedBox(height: 12),
-                                SpendingHeatmapWidget(),
+                                () {
+                                  final year = dashboard.selectedYear ?? DateTime.now().year;
+                                  final month = dashboard.selectedMonth ?? DateTime.now().month;
+                                  final firstDay = DateTime(year, month, 1);
+                                  final lastDay = DateTime(year, month + 1, 0); 
+                                  return CalendarHeatmapWidget(
+                                    data: dashboard.data!.calendarHeatmap,
+                                    maskingFactor: dashboard.maskingFactor,
+                                    startDate: firstDay,
+                                    endDate: lastDay,
+                                  );
+                                }(),
+                                const SizedBox(height: 32),
+                                _buildSectionTitle(context, 'Geographical Spending'),
+                                const SizedBox(height: 12),
+                                const SpendingHeatmapWidget(),
                                 const SizedBox(height: 32),
                                 _buildSectionTitle(context, 'Daily Activity (This Month)'),
                                 const SizedBox(height: 12),

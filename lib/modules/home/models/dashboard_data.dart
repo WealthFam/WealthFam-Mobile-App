@@ -16,6 +16,7 @@ class DashboardData {
   final List<CategoryPieItem> categoryDistribution;
   final List<MonthTrendItem> monthWiseTrend;
   final List<RecentTransaction> recentTransactions;
+  final Map<String, Decimal> calendarHeatmap;
   final int pendingTriageCount;
   final int pendingTrainingCount;
   final int? familyMembersCount;
@@ -28,6 +29,7 @@ class DashboardData {
     required this.categoryDistribution,
     required this.monthWiseTrend,
     required this.recentTransactions,
+    this.calendarHeatmap = const {},
     this.pendingTriageCount = 0,
     this.pendingTrainingCount = 0,
     this.familyMembersCount,
@@ -50,6 +52,8 @@ class DashboardData {
       recentTransactions: (json['recent_transactions'] as List? ?? [])
           .map((i) => RecentTransaction.fromJson(i))
           .toList(),
+      calendarHeatmap: (json['calendar_heatmap'] as Map<String, dynamic>? ?? {})
+          .map((k, v) => MapEntry(k, _toDecimal(v))),
       pendingTriageCount: json['pending_triage_count'] ?? 0,
       pendingTrainingCount: json['pending_training_count'] ?? 0,
       familyMembersCount: json['family_members_count'],
@@ -65,6 +69,7 @@ class DashboardData {
       'category_distribution': categoryDistribution.map((i) => i.toJson()).toList(),
       'month_wise_trend': monthWiseTrend.map((i) => i.toJson()).toList(),
       'recent_transactions': recentTransactions.map((i) => i.toJson()).toList(),
+      'calendar_heatmap': calendarHeatmap.map((k, v) => MapEntry(k, v.toString())),
       'pending_triage_count': pendingTriageCount,
       'pending_training_count': pendingTrainingCount,
       'family_members_count': familyMembersCount,
@@ -79,6 +84,7 @@ class DashboardData {
     List<CategoryPieItem>? categoryDistribution,
     List<MonthTrendItem>? monthWiseTrend,
     List<RecentTransaction>? recentTransactions,
+    Map<String, Decimal>? calendarHeatmap,
     int? pendingTriageCount,
     int? pendingTrainingCount,
     int? familyMembersCount,
@@ -91,6 +97,7 @@ class DashboardData {
       categoryDistribution: categoryDistribution ?? this.categoryDistribution,
       monthWiseTrend: monthWiseTrend ?? this.monthWiseTrend,
       recentTransactions: recentTransactions ?? this.recentTransactions,
+      calendarHeatmap: calendarHeatmap ?? this.calendarHeatmap,
       pendingTriageCount: pendingTriageCount ?? this.pendingTriageCount,
       pendingTrainingCount: pendingTrainingCount ?? this.pendingTrainingCount,
       familyMembersCount: familyMembersCount ?? this.familyMembersCount,

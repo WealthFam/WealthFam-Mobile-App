@@ -9,6 +9,8 @@ import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/models/unparsed_message.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_app/modules/ingestion/widgets/forensic_annotation_form.dart';
+import 'package:mobile_app/core/errors/either.dart';
+import 'package:mobile_app/core/errors/failures.dart';
 
 class NeuralTrainingScreen extends StatefulWidget {
   const NeuralTrainingScreen({super.key});
@@ -35,33 +37,36 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
 
   Future<void> _loadData() async {
     setState(() { _isLoading = true; _error = null; });
-    try {
-      final dashboard = context.read<DashboardService>();
-      final messages = await dashboard.fetchTrainingQueue(search: _searchQuery);
-      
-      if (_showSpamOnly) {
-         await _loadSpamFilters();
-      }
-
-      setState(() {
-        _messages = messages;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() { _error = e.toString(); _isLoading = false; });
+    final dashboard = context.read<DashboardService>();
+    
+    final result = await dashboard.fetchTrainingQueue(search: _searchQuery);
+    
+    if (mounted) {
+      result.fold(
+        (failure) => setState(() { _error = failure.message; _isLoading = false; }),
+        (messages) async {
+          _messages = messages;
+          if (_showSpamOnly) {
+            await _loadSpamFilters();
+          }
+          setState(() => _isLoading = false);
+        },
+      );
     }
   }
 
   Future<void> _loadSpamFilters() async {
-    final config = context.read<AppConfig>();
-    final auth = context.read<AuthService>();
-    final url = Uri.parse('${config.backendUrl}/api/v1/ingestion/training/spam');
-    final response = await http.get(url, headers: {'Authorization': 'Bearer ${auth.accessToken}'});
-    if (response.statusCode == 200) {
-      setState(() {
-        _spamFilters = jsonDecode(response.body)['data'] ?? [];
-      });
-    }
+    final dashboard = context.read<DashboardService>();
+    final result = await dashboard.fetchSpamFilters();
+    
+    result.fold(
+      (failure) => debugPrint('Error loading spam filters: ${failure.message}'),
+      (filters) {
+        if (mounted) {
+          setState(() => _spamFilters = filters);
+        }
+      },
+    );
   }
 
   Future<bool> _showConfirmDialog({
@@ -102,16 +107,17 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
     );
     if (!confirm) return;
 
-    final config = context.read<AppConfig>();
-    final auth = context.read<AuthService>();
-    final url = Uri.parse('${config.backendUrl}/api/v1/ingestion/training/$msgId/mark-as-spam');
+    final dashboard = context.read<DashboardService>();
+    final result = await dashboard.markAsSpam(msgId);
     
-    final response = await http.post(url, headers: {'Authorization': 'Bearer ${auth.accessToken}'});
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as Spam')));
-      _loadData();
-      context.read<DashboardService>().refresh();
-    }
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message))),
+      (_) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as Spam')));
+        _loadData();
+        dashboard.refresh();
+      },
+    );
   }
 
   Future<void> _bulkIgnore(List<String> ids) async {
@@ -122,20 +128,17 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
     );
     if (!confirm) return;
 
-    final config = context.read<AppConfig>();
-    final auth = context.read<AuthService>();
-    final url = Uri.parse('${config.backendUrl}/api/v1/ingestion/training/bulk-dismiss');
+    final dashboard = context.read<DashboardService>();
+    final result = await dashboard.bulkIgnore(ids);
     
-    final response = await http.post(
-      url, 
-      headers: {'Authorization': 'Bearer ${auth.accessToken}', 'Content-Type': 'application/json'},
-      body: jsonEncode({'ids': ids, 'create_rule': false})
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message))),
+      (_) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ignored ${ids.length} messages')));
+        _loadData();
+        dashboard.refresh();
+      },
     );
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ignored ${ids.length} messages')));
-      _loadData();
-      context.read<DashboardService>().refresh();
-    }
   }
 
   @override
@@ -362,8 +365,11 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
                    );
                    if (!confirm) return;
                    
-                   await context.read<DashboardService>().dismissTraining(item.id);
-                   _loadData();
+                   final result = await context.read<DashboardService>().dismissTraining(item.id);
+                   result.fold(
+                     (f) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(f.message))),
+                     (_) => _loadData()
+                   );
                 },
                 style: TextButton.styleFrom(foregroundColor: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), padding: const EdgeInsets.symmetric(horizontal: 12)),
                 child: const Text('Dismiss', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
@@ -436,10 +442,12 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
                     );
                     if (!confirm) return;
 
-                    final config = context.read<AppConfig>();
-                    final auth = context.read<AuthService>();
-                    await http.delete(Uri.parse('${config.backendUrl}/api/v1/ingestion/training/spam/${filter['id']}'), headers: {'Authorization': 'Bearer ${auth.accessToken}'});
-                    _loadData();
+                    final dashboard = context.read<DashboardService>();
+                    final result = await dashboard.deleteSpamFilter(filter['id']);
+                    result.fold(
+                      (f) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(f.message))),
+                      (_) => _loadData(),
+                    );
                   },
                 ),
               );

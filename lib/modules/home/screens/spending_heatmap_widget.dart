@@ -10,6 +10,7 @@ import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/core/errors/either.dart';
 
 class SpendingHeatmapWidget extends StatefulWidget {
   const SpendingHeatmapWidget({super.key});
@@ -59,41 +60,35 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
       _error = null;
     });
 
-    final config = context.read<AppConfig>();
-    final auth = context.read<AuthService>();
     final dashboard = _dashboard;
-
     if (dashboard == null) return;
 
-    try {
-      final start = DateTime(dashboard.selectedYear ?? DateTime.now().year, dashboard.selectedMonth ?? DateTime.now().month, 1);
-      final daysInMonth = DateUtils.getDaysInMonth(start.year, start.month);
-      final end = DateTime(start.year, start.month, daysInMonth, 23, 59, 59);
+    final start = DateTime(dashboard.selectedYear ?? DateTime.now().year, dashboard.selectedMonth ?? DateTime.now().month, 1);
+    final daysInMonth = DateUtils.getDaysInMonth(start.year, start.month);
+    final end = DateTime(start.year, start.month, daysInMonth, 23, 59, 59);
 
-      final url = Uri.parse('${config.backendUrl}/api/v1/mobile/heatmap').replace(
-        queryParameters: {
-          'start_date': start.toIso8601String(),
-          'end_date': end.toIso8601String(),
-          if (dashboard.selectedMemberId != null) 'member_id': dashboard.selectedMemberId,
+    final result = await dashboard.fetchGeographicalHeatmap(
+      start: start,
+      end: end,
+      memberId: dashboard.selectedMemberId,
+    );
+
+    if (mounted) {
+      result.fold(
+        (failure) {
+          setState(() {
+            _error = failure.message;
+            _isLoading = false;
+          });
         },
-      );
+        (data) {
+          final weighted = data.map((p) {
+            final lat = (p['latitude'] as num).toDouble();
+            final lng = (p['longitude'] as num).toDouble();
+            final amt = (p['amount'] as num).toDouble();
+            return WeightedLatLng(LatLng(lat, lng), amt);
+          }).toList();
 
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer ${auth.accessToken}'},
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-
-        final weighted = data.map((p) {
-          final lat = (p['latitude'] as num).toDouble();
-          final lng = (p['longitude'] as num).toDouble();
-          final amt = (p['amount'] as num).toDouble();
-          return WeightedLatLng(LatLng(lat, lng), amt);
-        }).toList();
-
-        if (mounted) {
           setState(() {
             _heatmapData = data;
             _weightedPoints = weighted;
@@ -104,22 +99,8 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
             _rebuildStream.add(null);
             _fitMapBounds();
           }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _error = 'Failed to load: ${response.statusCode}';
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'Connection error';
-          _isLoading = false;
-        });
-      }
+        },
+      );
     }
   }
 
