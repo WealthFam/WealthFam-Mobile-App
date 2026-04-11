@@ -273,8 +273,8 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                             final hash = smsService.computeHash(msg.address ?? '', (msg.date ?? 0).toString(), msg.body ?? '');
                             final isSynced = smsService.isCached(hash);
                             final isSelected = _selectedHashes.contains(hash);
-
-                            return _buildSmsCard(msg, hash, isSynced, isSelected);
+                            
+                            return _buildSmsCard(smsService, msg, hash, isSynced, isSelected);
                           },
                         ),
             ),
@@ -398,7 +398,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
     );
   }
 
-  Widget _buildSmsCard(SmsMessage msg, String hash, bool isSynced, bool isSelected) {
+  Widget _buildSmsCard(SmsService smsService, SmsMessage msg, String hash, bool isSynced, bool isSelected) {
     final theme = Theme.of(context);
     final date = msg.date != null ? DateTime.fromMillisecondsSinceEpoch(msg.date!) : DateTime.now();
     final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(date);

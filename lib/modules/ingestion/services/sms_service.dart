@@ -164,6 +164,11 @@ class SmsService extends ChangeNotifier {
   String? get lastSyncStatus => _lastSyncStatus;
   bool get isSyncing => _isSyncing;
   int get queueCount => (_prefs.getStringList(keyQueue) ?? []).length;
+
+  List<Map<String, dynamic>> getQueueItems() {
+    final List<String> queue = _prefs.getStringList(keyQueue) ?? [];
+    return queue.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+  }
   
   // Metadata cache: hash -> {'lat': double, 'lng': double, 'time': int}
   final Map<String, Map<String, dynamic>> _smsMetadata = {};
