@@ -114,7 +114,8 @@ class SyncTaskHandler extends TaskHandler {
               for (var alert in alerts) {
                 final title = alert['title'] ?? 'Alert';
                 final body = alert['body'] ?? '';
-                final id = (alert['id'] ?? DateTime.now().millisecondsSinceEpoch) % 2147483647;
+                final dynamic rawId = alert['id'];
+                final int id = (rawId is int ? rawId : (rawId?.toString().hashCode ?? DateTime.now().millisecondsSinceEpoch)) % 2147483647;
                 
                 await alertsPlugin.show(
                   id,

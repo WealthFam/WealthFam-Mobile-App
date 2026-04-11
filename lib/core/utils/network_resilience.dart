@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -7,7 +8,7 @@ import 'package:mobile_app/core/errors/failures.dart';
 mixin NetworkResilience {
   Future<Either<Failure, T>> callWithResilience<T>({
     required Future<http.Response> Function() call,
-    required T Function(dynamic data) onSuccess,
+    required FutureOr<T> Function(dynamic data) onSuccess,
     int maxRetries = 2,
   }) async {
     int retries = 0;
@@ -15,10 +16,9 @@ mixin NetworkResilience {
     while (true) {
       try {
         final response = await call();
-        
         if (response.statusCode >= 200 && response.statusCode < 300) {
           try {
-            return Right(onSuccess(response.body));
+            return Right(await onSuccess(response.body));
           } catch (e) {
             return const Left(ValidationFailure('Parsing error'));
           }
@@ -47,7 +47,6 @@ mixin NetworkResilience {
         }
         return const Left(ConnectionFailure());
       } catch (e) {
-        debugPrint('NetworkResilience: Unexpected error: $e');
         return Left(ServerFailure(e.toString()));
       }
     }
