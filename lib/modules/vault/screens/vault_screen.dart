@@ -1,17 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/vault/services/vault_service.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:decimal/decimal.dart';
+
+import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/modules/vault/services/vault_service.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/core/errors/either.dart';
 import 'package:mobile_app/core/errors/failures.dart';
-import 'package:decimal/decimal.dart';
+import 'package:mobile_app/modules/home/services/categories_service.dart';
+import 'package:mobile_app/modules/home/models/transaction_category.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 
 class VaultScreen extends StatefulWidget {
-  const VaultScreen({super.key});
+  final String? initialFolderId;
+  final String? initialSearch;
+  const VaultScreen({super.key, this.initialFolderId, this.initialSearch});
 
   @override
   State<VaultScreen> createState() => _VaultScreenState();
@@ -21,13 +28,32 @@ class _VaultScreenState extends State<VaultScreen> {
   bool _isGridView = true;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<VaultService>().fetchDocuments();
+      final service = context.read<VaultService>();
+      if (widget.initialSearch != null) {
+        setState(() {
+          _isSearching = true;
+          _searchController.text = widget.initialSearch!;
+        });
+        service.fetchDocuments(search: widget.initialSearch);
+      } else if (widget.initialFolderId != null) {
+        service.navigateToFolder(widget.initialFolderId!, "Linked Folder");
+      } else {
+        service.fetchDocuments();
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -64,7 +90,12 @@ class _VaultScreenState extends State<VaultScreen> {
                   hintStyle: TextStyle(color: Colors.white70),
                   border: InputBorder.none,
                 ),
-                onChanged: (value) => vaultService.fetchDocuments(search: value),
+                onChanged: (value) {
+                  _searchTimer?.cancel();
+                  _searchTimer = Timer(const Duration(milliseconds: 500), () {
+                    vaultService.fetchDocuments(search: value);
+                  });
+                },
               )
             : const Text('Documents Vault'),
         actions: [
@@ -107,15 +138,21 @@ class _VaultScreenState extends State<VaultScreen> {
             Expanded(
               child: RefreshIndicator(
               onRefresh: () => vaultService.fetchDocuments(),
-              child: vaultService.isLoading && vaultService.documents.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : vaultService.error != null
-                      ? _buildErrorState(vaultService.error!)
-                      : filteredDocs.isEmpty
-                          ? _buildEmptyState()
-                          : _isGridView 
-                              ? _buildGridView(vaultService, filteredDocs)
-                              : _buildListView(vaultService, filteredDocs),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: vaultService.isLoading && vaultService.documents.isEmpty
+                    ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
+                    : vaultService.error != null
+                        ? _buildErrorState(vaultService.error!)
+                        : filteredDocs.isEmpty
+                            ? _buildEmptyState()
+                            : KeyedSubtree(
+                                key: ValueKey('${vaultService.currentParentId}_$_isGridView'),
+                                child: _isGridView 
+                                    ? _buildGridView(vaultService, filteredDocs)
+                                    : _buildListView(vaultService, filteredDocs),
+                              ),
+              ),
               ),
             ),
           ],
@@ -386,69 +423,192 @@ class _VaultScreenState extends State<VaultScreen> {
       ),
     );
   }
+  Map<String, List<VaultDocument>> _getGroupedDocs(List<VaultDocument> documents) {
+    if (documents.isEmpty) return {};
+    
+    // Split folders and files
+    final folders = documents.where((d) => d.isFolder).toList();
+    final files = documents.where((d) => !d.isFolder).toList();
+    
+    final Map<String, List<VaultDocument>> grouped = {};
+    
+    if (folders.isNotEmpty) {
+      grouped['Folders'] = folders;
+    }
+    
+    // Sort files by date descending
+    files.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    
+    for (var doc in files) {
+      final key = DateFormat('MMMM yyyy').format(doc.createdAt);
+      if (!grouped.containsKey(key)) {
+        grouped[key] = [];
+      }
+      grouped[key]!.add(doc);
+    }
+    
+    return grouped;
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Row(
+        children: [
+          Icon(
+            title == 'Folders' ? Icons.folder_open : Icons.calendar_today_outlined,
+            size: 14,
+            color: AppTheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+              color: AppTheme.primary.withOpacity(0.8),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Divider(color: AppTheme.primary.withOpacity(0.1), thickness: 1),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildGridView(VaultService service, List<VaultDocument> documents) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: documents.length,
-      itemBuilder: (context, index) {
-        final doc = documents[index];
-        return _buildDocCard(doc, service);
-      },
+    final grouped = _getGroupedDocs(documents);
+    final keys = grouped.keys.toList();
+
+    return CustomScrollView(
+      slivers: [
+        for (var key in keys) ...[
+          SliverToBoxAdapter(child: _buildSectionHeader(key)),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.82,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildDocCard(grouped[key]![index], service),
+                childCount: grouped[key]!.length,
+              ),
+            ),
+          ),
+        ],
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+      ],
     );
   }
 
   Widget _buildListView(VaultService service, List<VaultDocument> documents) {
+    final grouped = _getGroupedDocs(documents);
+    final keys = grouped.keys.toList();
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: documents.length,
+      padding: const EdgeInsets.only(bottom: 100),
+      itemCount: keys.length,
       itemBuilder: (context, index) {
-        final doc = documents[index];
-        final isSelected = service.selectedIds.contains(doc.id);
+        final key = keys[index];
+        final sectionDocs = grouped[key]!;
         
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          elevation: isSelected ? 4 : 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: isSelected ? AppTheme.primary : Colors.black.withOpacity(0.05),
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: ListTile(
-            leading: _buildFileIcon(doc, service, size: 40),
-            title: Text(doc.filename, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${doc.isFolder ? 'Folder' : doc.fileType} • ${doc.formattedSize}'),
-            selected: isSelected,
-            trailing: service.isSelectionMode
-                ? Checkbox(
-                    value: isSelected,
-                    onChanged: (_) => service.toggleSelection(doc.id),
-                    activeColor: AppTheme.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => _showActionSheet(doc, service),
-                  ),
-            onTap: () {
-              if (service.isSelectionMode) {
-                service.toggleSelection(doc.id);
-              } else {
-                _handleTap(doc, service);
-              }
-            },
-            onLongPress: () => service.toggleSelection(doc.id),
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildSectionHeader(key),
+            ...sectionDocs.map((doc) => _buildDocTile(doc, service)).toList(),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildDocTile(VaultDocument doc, VaultService service) {
+    final isSelected = service.selectedIds.contains(doc.id);
+    final theme = Theme.of(context);
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected ? AppTheme.primary.withOpacity(0.08) : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isSelected ? [] : [
+           BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))
+        ],
+        border: Border.all(
+          color: isSelected ? AppTheme.primary : theme.dividerColor.withOpacity(0.05),
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        onTap: () {
+          if (service.isSelectionMode) {
+            service.toggleSelection(doc.id);
+          } else {
+            _handleTap(doc, service);
+          }
+        },
+        onLongPress: () => service.toggleSelection(doc.id),
+        leading: _buildFileIcon(doc, service, size: 44),
+        title: Text(
+          doc.filename, 
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: -0.2),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Row(
+          children: [
+            Text(
+              doc.isFolder ? 'Folder' : (doc.linkedTransaction != null ? doc.linkedTransaction!.description : doc.fileType),
+              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), fontWeight: FontWeight.bold),
+            ),
+            if (!doc.isFolder) ...[
+              const Text(' • ', style: TextStyle(color: Colors.grey)),
+              Text(doc.formattedSize, style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5))),
+            ],
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (doc.linkedTransaction != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '₹${doc.linkedTransaction!.amount.toStringAsFixed(0)}',
+                  style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900, fontSize: 11),
+                ),
+              ),
+            if (service.isSelectionMode)
+              Checkbox(
+                value: isSelected,
+                onChanged: (_) => service.toggleSelection(doc.id),
+                activeColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.more_vert, size: 20, color: Colors.black38),
+                onPressed: () => _showActionSheet(doc, service),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -477,7 +637,17 @@ class _VaultScreenState extends State<VaultScreen> {
         onLongPress: () => service.toggleSelection(doc.id),
         child: Container(
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primary.withOpacity(0.05) : null,
+            gradient: isSelected 
+              ? LinearGradient(
+                  colors: [AppTheme.primary.withOpacity(0.1), AppTheme.primary.withOpacity(0.05)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [theme.colorScheme.surface, theme.colorScheme.surface.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -514,6 +684,32 @@ class _VaultScreenState extends State<VaultScreen> {
                           onPressed: () => _showActionSheet(doc, service),
                         ),
                       ),
+                    if (doc.transactionId != null)
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.receipt_long_outlined, size: 10, color: Colors.white),
+                              if (doc.linkedTransaction != null) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  '₹${doc.linkedTransaction!.amount.toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -534,8 +730,16 @@ class _VaultScreenState extends State<VaultScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          doc.isFolder ? 'Folder' : doc.fileType,
-                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.bold),
+                          doc.isFolder 
+                            ? 'Folder' 
+                            : (doc.linkedTransaction != null ? doc.linkedTransaction!.description : doc.fileType),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), 
+                            fontSize: 10, 
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
                           DateFormat('dd MMM').format(doc.createdAt),
@@ -583,26 +787,41 @@ class _VaultScreenState extends State<VaultScreen> {
     IconData icon;
     Color color;
     
-    switch (doc.fileType.toUpperCase()) {
-      case 'INVOICE':
-        icon = Icons.receipt_long;
-        color = Colors.blue;
-        break;
-      case 'POLICY':
-        icon = Icons.verified_user;
-        color = Colors.green;
-        break;
-      case 'IDENTITY':
-        icon = Icons.badge;
-        color = Colors.purple;
-        break;
-      case 'TAX':
-        icon = Icons.account_balance;
-        color = Colors.orange;
-        break;
-      default:
-        icon = Icons.insert_drive_file;
-        color = Colors.grey;
+    final type = doc.fileType.toUpperCase();
+    final mime = doc.mimeType?.toLowerCase() ?? '';
+    
+    if (mime.contains('pdf') || doc.filename.toLowerCase().endsWith('.pdf')) {
+      icon = Icons.picture_as_pdf;
+      color = Colors.redAccent;
+    } else if (mime.startsWith('image/')) {
+      icon = Icons.image_outlined;
+      color = Colors.blueAccent;
+    } else {
+      switch (type) {
+        case 'BILL':
+          icon = Icons.receipt_long_outlined;
+          color = Colors.teal;
+          break;
+        case 'INVOICE':
+          icon = Icons.receipt_long;
+          color = Colors.blue;
+          break;
+        case 'POLICY':
+          icon = Icons.verified_user_outlined;
+          color = Colors.green;
+          break;
+        case 'IDENTITY':
+          icon = Icons.badge_outlined;
+          color = Colors.indigo;
+          break;
+        case 'TAX':
+          icon = Icons.account_balance_outlined;
+          color = Colors.orange;
+          break;
+        default:
+          icon = Icons.insert_drive_file_outlined;
+          color = Colors.grey;
+      }
     }
 
     return Container(
@@ -635,122 +854,135 @@ class _VaultScreenState extends State<VaultScreen> {
         minChildSize: 0.4,
         expand: false,
         builder: (context, scrollController) => SafeArea(
-          child: ListView(
-            controller: scrollController,
-            shrinkWrap: true,
-            children: [
-              ListTile(
-                leading: _buildFileIcon(doc, service, size: 32),
-                title: Text(doc.filename, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                subtitle: Text(doc.isFolder ? 'Folder' : '${doc.fileType} • ${doc.formattedSize}'),
-              ),
-              if (doc.linkedTransaction != null) ...[
-                const Divider(indent: 16, endIndent: 16),
-                _buildTransactionInfo(doc.linkedTransaction!),
-              ],
-              const Divider(),
-              if (!doc.isFolder) ...[
-                ListTile(
-                  leading: const Icon(Icons.remove_red_eye_outlined),
-                  title: const Text('View Document'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _openDocument(doc, service);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.download_outlined),
-                  title: const Text('Download'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final result = await service.saveDocument(doc);
-                    result.fold(
-                      (failure) {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
-                        );
+          child: Consumer<VaultService>(
+            builder: (context, latestService, _) {
+              // Find the latest version of this document to show updates (e.g. after linking)
+              final latestDoc = latestService.documents.firstWhere(
+                (d) => d.id == doc.id, 
+                orElse: () => doc,
+              );
+              
+              return ListView(
+                controller: scrollController,
+                shrinkWrap: true,
+                children: [
+                  ListTile(
+                    leading: _buildFileIcon(latestDoc, latestService, size: 32),
+                    title: Text(latestDoc.filename, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                    subtitle: Text(latestDoc.isFolder ? 'Folder' : '${latestDoc.fileType} • ${latestDoc.formattedSize}'),
+                  ),
+                  if (latestDoc.linkedTransaction != null) ...[
+                    const Divider(indent: 16, endIndent: 16),
+                    _buildTransactionInfo(latestDoc.linkedTransaction!),
+                  ],
+                  const Divider(),
+                  if (!latestDoc.isFolder) ...[
+                    ListTile(
+                      leading: const Icon(Icons.remove_red_eye_outlined),
+                      title: const Text('View Document'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _openDocument(latestDoc, latestService);
                       },
-                      (path) {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text('Saved to: $path')),
-                        );
-                      },
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share_outlined),
-                  title: const Text('Send with...'),
-                  onTap: () => Navigator.pop(context),
-                ),
-              ],
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('Details'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Rename'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showRenameDialog(context, doc);
-                },
-              ),
-              ListTile(
-                leading: Icon(doc.linkedTransaction != null ? Icons.link_off : Icons.link),
-                title: Text(doc.linkedTransaction != null ? 'Unlink Transaction' : 'Link to Transaction'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (doc.linkedTransaction != null) {
-                    _handleUnlink(doc.id, service);
-                  } else {
-                    _showTransactionPicker(context, doc.id, service);
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_move_outlined),
-                title: const Text('Move to Folder'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showMovePicker(context, [doc.id]);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppTheme.danger),
-                title: const Text('Delete', style: TextStyle(color: AppTheme.danger)),
-                onTap: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete?'),
-                      content: Text('Are you sure you want to delete ${doc.filename}?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true), 
-                          child: const Text('Delete', style: TextStyle(color: AppTheme.danger)),
-                        ),
-                      ],
                     ),
-                  );
-                  if (confirm == true) {
-                    final result = await service.deleteDocument(doc.id);
-                    result.fold(
-                      (failure) {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                    ListTile(
+                      leading: const Icon(Icons.download_outlined),
+                      title: const Text('Download'),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final result = await latestService.saveDocument(latestDoc);
+                        result.fold(
+                          (failure) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                            );
+                          },
+                          (path) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text('Saved to: $path')),
+                            );
+                          },
                         );
                       },
-                      (_) {
-                        // All good
-                      },
-                    );
-                  }
-                },
-              ),
-            ],
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.share_outlined),
+                      title: const Text('Send with...'),
+                      onTap: () => Navigator.pop(context),
+                    ),
+                  ],
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('Details'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showDetailsDialog(context, latestDoc);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.edit_outlined),
+                    title: const Text('Rename'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showRenameDialog(context, latestDoc);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(latestDoc.linkedTransaction != null ? Icons.link_off : Icons.link),
+                    title: Text(latestDoc.linkedTransaction != null ? 'Unlink Transaction' : 'Link to Transaction'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (latestDoc.linkedTransaction != null) {
+                        latestService.linkTransaction(latestDoc.id, null);
+                      } else {
+                        _showTransactionPicker(context, latestDoc.id, latestService);
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.drive_file_move_outlined),
+                    title: const Text('Move to Folder'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showMovePicker(context, [latestDoc.id]);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline, color: AppTheme.danger),
+                    title: const Text('Delete', style: TextStyle(color: AppTheme.danger)),
+                    onTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete?'),
+                          content: Text('Are you sure you want to delete ${latestDoc.filename}?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true), 
+                              child: const Text('Delete', style: TextStyle(color: AppTheme.danger)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        final result = await latestService.deleteDocument(latestDoc.id);
+                        result.fold(
+                          (failure) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                            );
+                          },
+                          (_) {
+                            // All good
+                          },
+                        );
+                      }
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -859,8 +1091,118 @@ class _VaultScreenState extends State<VaultScreen> {
   }
 
   void _showTransactionPicker(BuildContext context, String docId, VaultService service) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Transaction selection coming soon...')),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        String query = "";
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) => Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      const Text('Link Transaction', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                      const Spacer(),
+                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: StatefulBuilder(
+                    builder: (context, setPickerState) {
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: TextField(
+                              decoration: InputDecoration(
+                                hintText: 'Search merchant or amount...',
+                                prefixIcon: const Icon(Icons.search),
+                                filled: true,
+                                fillColor: Colors.grey.withOpacity(0.05),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                              ),
+                              onChanged: (val) {
+                                setPickerState(() => query = val);
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: FutureBuilder<Either<Failure, List<dynamic>>>(
+                              key: ValueKey(query), // Force rebuild on query change
+                              future: service.searchTransactions(query: query),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+                                return snapshot.data?.fold(
+                                  (failure) => Center(child: Text(failure.message)),
+                                  (txns) {
+                                    if (txns.isEmpty) {
+                                      return const Center(child: Text('No transactions found'));
+                                    }
+                                    return ListView.builder(
+                                      controller: scrollController,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      itemCount: txns.length,
+                                      itemBuilder: (context, index) {
+                                        final txn = txns[index];
+                                        return ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundColor: AppTheme.primary.withOpacity(0.1),
+                                            child: Text(
+                                              txn['category'] != null && txn['category'].toString().isNotEmpty 
+                                                ? txn['category'].toString()[0].toUpperCase() 
+                                                : 'T', 
+                                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)
+                                            ),
+                                          ),
+                                          title: Text(txn['description'] ?? 'No Description', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          subtitle: Text(txn['date'] ?? '', style: const TextStyle(fontSize: 10)),
+                                          trailing: Text('₹${txn['amount']}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primary)),
+                                          onTap: () async {
+                                            final result = await service.linkTransaction(docId, txn['id']);
+                                            if (context.mounted) {
+                                              Navigator.pop(context);
+                                              _handleActionResult(result, 'Linked successfully');
+                                            }
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ) ?? const Center(child: Text('Error loading transactions'));
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -884,46 +1226,106 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Widget _buildTransactionInfo(LinkedTransaction tx) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.primary.withOpacity(0.1)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final dashboard = context.read<DashboardService>();
+    final amount = tx.amount.toDouble();
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
               children: [
-                Icon(Icons.link, size: 14, color: AppTheme.primary),
-                const SizedBox(width: 8),
-                Text('LINKED EVIDENCE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppTheme.primary, letterSpacing: 1)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tx.description, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text(DateFormat('dd MMM yyyy').format(tx.date), style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6))),
-                    ],
+                Icon(Icons.link, size: 12, color: theme.primaryColor),
+                const SizedBox(width: 6),
+                Text(
+                  'LINKED TRANSACTION',
+                  style: TextStyle(
+                    fontSize: 9, 
+                    fontWeight: FontWeight.w900, 
+                    color: theme.primaryColor, 
+                    letterSpacing: 1,
                   ),
                 ),
-                Text(
-                  '₹${tx.amount.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: -0.5),
-                ),
               ],
             ),
-          ],
-        ),
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            leading: Consumer<CategoriesService>(
+              builder: (context, catService, _) {
+                final catNameRaw = tx.category ?? 'Other';
+                final catName = catNameRaw.contains(' › ') ? catNameRaw.split(' › ').last : catNameRaw;
+                TransactionCategory? matched;
+
+                for (var parent in catService.categories) {
+                  if (parent.name.toLowerCase() == catName.toLowerCase()) {
+                    matched = parent;
+                    break;
+                  }
+                  for (var sub in parent.subcategories) {
+                    if (sub.name.toLowerCase() == catName.toLowerCase()) {
+                      matched = sub;
+                      break;
+                    }
+                  }
+                  if (matched != null) break;
+                }
+                
+                return Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    matched?.icon ?? (catName.isNotEmpty ? catName[0].toUpperCase() : '?'),
+                    style: TextStyle(
+                      fontSize: 18, 
+                      color: theme.primaryColor,
+                      fontWeight: FontWeight.bold
+                    )
+                  ),
+                );
+              },
+            ),
+            title: Text(
+              tx.description,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+            subtitle: Text(
+              '${DateFormat('d MMM, h:mm a').format(tx.date)} • ${tx.accountName ?? 'Account'}',
+              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), fontWeight: FontWeight.w500),
+            ),
+            trailing: Text(
+              NumberFormat.simpleCurrency(name: 'INR', decimalDigits: 0).format(amount / dashboard.maskingFactor),
+              style: TextStyle(
+                color: amount < 0 ? AppTheme.danger : AppTheme.success,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                letterSpacing: -0.5
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -949,7 +1351,7 @@ class _VaultScreenState extends State<VaultScreen> {
               DropdownButtonFormField<String>(
                 value: type,
                 decoration: const InputDecoration(labelText: 'Document Type'),
-                items: ['OTHER', 'INVOICE', 'POLICY', 'TAX', 'IDENTITY']
+                items: ['OTHER', 'BILL', 'INVOICE', 'POLICY', 'TAX', 'IDENTITY']
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
                 onChanged: (val) => setDialogState(() => type = val!),
@@ -991,7 +1393,7 @@ class _VaultScreenState extends State<VaultScreen> {
               DropdownButtonFormField<String>(
                 value: type,
                 decoration: const InputDecoration(labelText: 'Document Type'),
-                items: ['OTHER', 'INVOICE', 'POLICY', 'TAX', 'IDENTITY']
+                items: ['OTHER', 'BILL', 'INVOICE', 'POLICY', 'TAX', 'IDENTITY']
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
                 onChanged: (val) => setDialogState(() => type = val!),
@@ -1050,5 +1452,81 @@ class _VaultScreenState extends State<VaultScreen> {
         );
       }
     }
+  }
+
+  void _showDetailsDialog(BuildContext context, VaultDocument doc) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        maxChildSize: 0.9,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppTheme.primary),
+                    const SizedBox(width: 12),
+                    const Text('Document Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                    const Spacer(),
+                    IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    _buildDetailRow('Filename', doc.filename),
+                    _buildDetailRow('Type', doc.fileType),
+                    if (!doc.isFolder) _buildDetailRow('Size', doc.formattedSize),
+                    if (!doc.isFolder) _buildDetailRow('MIME Type', doc.mimeType ?? 'Unknown'),
+                    _buildDetailRow('Created', DateFormat('dd MMM yyyy, h:mm a').format(doc.createdAt)),
+                    if (doc.description != null && doc.description!.isNotEmpty)
+                      _buildDetailRow('Description', doc.description!),
+                    if (doc.transactionId != null) ...[
+                      const Divider(height: 32),
+                      const Text('LINKED TRANSACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1)),
+                      const SizedBox(height: 12),
+                      if (doc.linkedTransaction != null)
+                        _buildTransactionInfo(doc.linkedTransaction!)
+                      else
+                        const Text('Transaction ID: Linked (Refresh to see details)', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 }

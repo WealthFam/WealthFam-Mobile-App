@@ -15,7 +15,7 @@ mixin NetworkResilience {
     
     while (true) {
       try {
-        final response = await call();
+        final response = await call().timeout(const Duration(seconds: 15));
         if (response.statusCode >= 200 && response.statusCode < 300) {
           try {
             return Right(await onSuccess(response.body));

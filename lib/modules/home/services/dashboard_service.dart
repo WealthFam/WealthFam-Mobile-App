@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
@@ -149,17 +150,23 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   }
 
   Future<void> refreshMembers() async {
-     if (_auth.accessToken == null) return;
-     try {
-       final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/members');
-       final response = await http.get(url, headers: {'Authorization': 'Bearer ${_auth.accessToken}'});
-       if (response.statusCode == 200) {
-         _members = jsonDecode(response.body);
-         notifyListeners();
-       }
-     } catch (e) {
-       debugPrint('Members fetch error: $e');
-     }
+    if (_auth.accessToken == null) return;
+    
+    final result = await callWithResilience<List<dynamic>>(
+      call: () => http.get(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/members'),
+        headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
+      ),
+      onSuccess: (body) => jsonDecode(body) as List<dynamic>,
+    );
+
+    result.fold(
+      (failure) => debugPrint('Members fetch failure: ${failure.message}'),
+      (members) {
+        _members = members;
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> refresh() async {
@@ -182,11 +189,15 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         futures.add(refreshMembers());
       }
       
-      await Future.wait(futures).timeout(const Duration(seconds: 10));
+      await Future.wait(futures).timeout(const Duration(seconds: 20));
       _error = null;
     } catch (e) {
-      debugPrint('Dashboard Service Multi-Fetch Error: $e');
-      _error = 'Some data failed to load';
+      debugPrint('Dashboard Service Multi-Fetch Failure: $e');
+      if (e is TimeoutException) {
+        _error = 'Dashboard update timed out';
+      } else {
+        _error = 'Failed to sync some data';
+      }
     } finally {
       _isLoading = false;
       await _saveCache();
@@ -439,16 +450,16 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   }
 
   Future<Either<Failure, List<dynamic>>> fetchGeographicalHeatmap({
-    required DateTime start,
-    required DateTime end,
+    int? month,
+    int? year,
     String? memberId,
   }) async {
     return callWithResilience<List<dynamic>>(
       call: () => http.get(
         Uri.parse('${_config.backendUrl}/api/v1/mobile/heatmap').replace(
           queryParameters: {
-            'start_date': start.toIso8601String(),
-            'end_date': end.toIso8601String(),
+            if (month != null) 'month': month.toString(),
+            if (year != null) 'year': year.toString(),
             if (memberId != null) 'member_id': memberId,
           },
         ),

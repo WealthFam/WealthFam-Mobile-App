@@ -63,13 +63,9 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
     final dashboard = _dashboard;
     if (dashboard == null) return;
 
-    final start = DateTime(dashboard.selectedYear ?? DateTime.now().year, dashboard.selectedMonth ?? DateTime.now().month, 1);
-    final daysInMonth = DateUtils.getDaysInMonth(start.year, start.month);
-    final end = DateTime(start.year, start.month, daysInMonth, 23, 59, 59);
-
     final result = await dashboard.fetchGeographicalHeatmap(
-      start: start,
-      end: end,
+      month: dashboard.selectedMonth,
+      year: dashboard.selectedYear,
       memberId: dashboard.selectedMemberId,
     );
 

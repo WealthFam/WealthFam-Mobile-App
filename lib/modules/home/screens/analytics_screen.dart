@@ -15,6 +15,8 @@ import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:decimal/decimal.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
+import 'package:mobile_app/modules/ingestion/screens/sms_management_screen.dart';
+import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
 import 'package:mobile_app/modules/home/screens/add_transaction_screen.dart';
 import 'package:mobile_app/modules/home/screens/spending_heatmap_widget.dart';
 import 'package:mobile_app/modules/home/screens/calendar_heatmap_widget.dart';
@@ -1158,14 +1160,36 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           '${DateFormat('h:mm a').format(date)} • ${txn['account_name'] ?? 'Account'}',
           style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), fontWeight: FontWeight.w500),
         ),
-        trailing: Text(
-          NumberFormat.simpleCurrency(name: 'INR').format(amount / dashboard.maskingFactor),
-          style: TextStyle(
-            color: amount < 0 ? AppTheme.danger : AppTheme.success,
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            letterSpacing: -0.5
-          ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              NumberFormat.simpleCurrency(name: 'INR', decimalDigits: 0).format(amount / dashboard.maskingFactor),
+              style: TextStyle(
+                color: amount < 0 ? AppTheme.danger : AppTheme.success,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                letterSpacing: -0.5
+              ),
+            ),
+            if (txn['has_documents'] == true)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: GestureDetector(
+                  onTap: () {
+                    // Navigate to Vault with search pre-filled
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VaultScreen(initialSearch: txn['description']),
+                      ),
+                    );
+                  },
+                  child: Icon(Icons.attach_file, size: 16, color: theme.primaryColor),
+                ),
+              ),
+          ],
         ),
       ),
     );

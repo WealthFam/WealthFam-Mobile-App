@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
@@ -10,6 +11,9 @@ import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
 import 'package:mobile_app/core/widgets/category_picker.dart';
+import 'package:mobile_app/modules/vault/services/vault_service.dart';
+import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
+import 'package:file_picker/file_picker.dart';
 
 class TransactionSettingsSheet extends StatefulWidget {
   final RecentTransaction transaction;
@@ -58,6 +62,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
   List<dynamic> _accounts = [];
   List<dynamic> _matches = [];
   bool _isLoadingMatches = false;
+  late Future<List<VaultDocument>> _evidenceFuture;
 
   @override
   void initState() {
@@ -65,6 +70,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
     _isTransfer = widget.transaction.isTransfer;
     _excludeFromReports = widget.transaction.excludeFromReports;
     _selectedCategory = widget.transaction.category;
+    _evidenceFuture = context.read<VaultService>().getLinkedDocuments(widget.transaction.id);
     
     Future.delayed(Duration.zero, () {
       context.read<CategoriesService>().fetchCategories();
@@ -96,13 +102,10 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
     final auth = context.read<AuthService>();
     
     try {
-      final amount = widget.transaction.amount.toDouble();
       final dateStr = widget.transaction.date.toUtc().toIso8601String();
-      
-      // We use the same smart matching logic as triage
       final url = Uri.parse('${config.backendUrl}/api/v1/mobile/ingestion/matches').replace(
         queryParameters: {
-          'amount': amount.toString(),
+          'amount': widget.transaction.amount.toString(),
           'date': dateStr,
           'account_id': widget.transaction.accountId ?? '',
           'target_account_id': _targetAccountId,
@@ -121,6 +124,139 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
       debugPrint("Error fetching matches: $e");
     } finally {
       if (mounted) setState(() => _isLoadingMatches = false);
+    }
+  }
+
+  Future<void> _handleFileUpload() async {
+    final vault = context.read<VaultService>();
+    
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+    
+    if (result != null && result.files.single.path != null) {
+      final file = result.files.single;
+      
+      // Step 1: Fetch existing folders to let user pick
+      if (!mounted) return;
+      final folders = await vault.getFolders();
+      
+      final controller = TextEditingController(text: file.name);
+      String selectedType = "INVOICE";
+      String? selectedFolderId; // Null means ROOT or we find/create Bills by default
+      
+      try {
+        selectedFolderId = folders.firstWhere((f) => f.filename == "Bills").id;
+      } catch (_) {
+        // Bills folder doesn't exist yet, it'll be created if they stick with default
+      }
+
+      final uploadData = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Evidence Details', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(labelText: 'FileName', hintText: 'filename.pdf'),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedType,
+                    decoration: const InputDecoration(labelText: 'Document Category'),
+                    items: ['INVOICE', 'BILL', 'POLICY', 'TAX', 'IDENTITY', 'OTHER']
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (val) => setDialogState(() => selectedType = val!),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String?>(
+                    value: selectedFolderId,
+                    decoration: const InputDecoration(labelText: 'Target Folder'),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Root Vault (or create Bills)')),
+                      ...folders.where((f) => f.isFolder).map((f) => DropdownMenuItem(value: f.id, child: Text(f.filename))),
+                    ],
+                    onChanged: (val) => setDialogState(() => selectedFolderId = val),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, {
+                    'name': controller.text, 
+                    'type': selectedType,
+                    'folderId': selectedFolderId,
+                  }),
+                  child: const Text('Upload'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      
+      if (uploadData == null) return;
+      final fileName = uploadData['name'] ?? file.name;
+      final fileType = uploadData['type'] ?? "INVOICE";
+
+      // Step 2: Proceed with upload
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+      
+      try {
+        // 1. Get or create target folder
+        String? targetFolderId = uploadData['folderId'];
+        if (targetFolderId == null) {
+          targetFolderId = await vault.getOrCreateFolderByName("Bills");
+        }
+        
+        // 2. Upload and link
+        final uploadResult = await vault.uploadDocument(
+          filePath: file.path!,
+          fileName: fileName,
+          fileType: fileType,
+          transactionId: widget.transaction.id,
+          parentId: targetFolderId,
+        );
+        
+        if (mounted) Navigator.pop(context); // Close loading
+        
+        uploadResult.fold(
+          (failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Upload failed: ${failure.message}'), backgroundColor: AppTheme.danger),
+            );
+          },
+          (_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Evidence uploaded and linked!'), backgroundColor: AppTheme.success),
+            );
+            setState(() {
+              _evidenceFuture = vault.getLinkedDocuments(widget.transaction.id);
+            });
+          },
+        );
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Upload failed: $e'), backgroundColor: AppTheme.danger),
+          );
+        }
+      }
     }
   }
 
@@ -414,6 +550,115 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
             icon: Icons.visibility_off_outlined,
             value: _excludeFromReports,
             onChanged: (v) => setState(() => _excludeFromReports = v),
+          ),
+          
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Evidence', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5)),
+              TextButton.icon(
+                onPressed: _handleFileUpload,
+                icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+                label: const Text('Add Receipt', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<List<VaultDocument>>(
+            future: _evidenceFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ));
+              }
+              final docs = snapshot.data ?? [];
+              if (docs.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.receipt_long_outlined, size: 32, color: theme.disabledColor.withValues(alpha: 0.3)),
+                      const SizedBox(height: 8),
+                      Text('No evidence linked yet', style: TextStyle(color: theme.disabledColor, fontSize: 12)),
+                    ],
+                  ),
+                );
+              }
+              
+              return Column(
+                children: docs.map((doc) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: doc.thumbnailPath != null 
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              context.read<VaultService>().getThumbnailUrl(doc.id),
+                              headers: context.read<VaultService>().authHeaders,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : const Icon(Icons.description_outlined, size: 20, color: AppTheme.primary),
+                    ),
+                    title: Text(doc.filename, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    subtitle: Text(doc.formattedSize, style: const TextStyle(fontSize: 11)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.folder_open_outlined, size: 18),
+                          tooltip: 'Show in Vault',
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VaultScreen(initialFolderId: doc.parentId ?? 'ROOT'),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          onPressed: () async {
+                            final vault = context.read<VaultService>();
+                            final result = await vault.saveDocument(doc);
+                            result.fold(
+                              (failure) => ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                              ),
+                              (path) => OpenFilex.open(path),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                )).toList(),
+              );
+            },
           ),
           
           const SizedBox(height: 40),

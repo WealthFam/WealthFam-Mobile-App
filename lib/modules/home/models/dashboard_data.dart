@@ -273,6 +273,7 @@ class RecentTransaction {
   final String? expenseGroupId;
   final String? expenseGroupName;
   final String? source;
+  final bool hasDocuments;
 
   RecentTransaction({
     required this.id,
@@ -289,6 +290,7 @@ class RecentTransaction {
     this.expenseGroupId,
     this.expenseGroupName,
     this.source,
+    this.hasDocuments = false,
   });
 
   factory RecentTransaction.fromJson(Map<String, dynamic> json) {
@@ -307,6 +309,7 @@ class RecentTransaction {
       expenseGroupId: json['expense_group_id'],
       expenseGroupName: json['expense_group_name'],
       source: json['source'],
+      hasDocuments: json['has_documents'] ?? false,
     );
   }
 
@@ -325,6 +328,7 @@ class RecentTransaction {
     'expense_group_id': expenseGroupId,
     'expense_group_name': expenseGroupName,
     'source': source,
+    'has_documents': hasDocuments,
   };
 
   String get formattedDate => DateFormat('MMM d, h:mm a').format(date);
