@@ -453,6 +453,28 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
             ),
             const SizedBox(height: 4),
             Text(dateStr, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
+            
+            // Forensic Metadata (Location)
+            Builder(builder: (context) {
+              final metadata = smsService.getMetadata(hash);
+              if (metadata == null || (metadata['lat'] == null && metadata['lng'] == null)) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 10, color: AppTheme.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${metadata['lat']?.toStringAsFixed(6)}, ${metadata['lng']?.toStringAsFixed(6)}',
+                      style: TextStyle(fontSize: 10, color: theme.primaryColor, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
             const SizedBox(height: 12),
             Text(
               msg.body ?? '',

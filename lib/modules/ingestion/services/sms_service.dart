@@ -165,12 +165,11 @@ class SmsService extends ChangeNotifier {
   bool get isSyncing => _isSyncing;
   int get queueCount => (_prefs.getStringList(keyQueue) ?? []).length;
   
-  List<Map<String, dynamic>> getQueueItems() {
-    final List<String> queue = _prefs.getStringList(keyQueue) ?? [];
-    return queue.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
-  }
+  // Metadata cache: hash -> {'lat': double, 'lng': double, 'time': int}
+  final Map<String, Map<String, dynamic>> _smsMetadata = {};
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _retryTimer;
 
   bool _isRequestingPermission = false;
 
@@ -248,6 +247,9 @@ class SmsService extends ChangeNotifier {
           retryQueue();
         }
       });
+
+      // Periodic retry every 5 minutes
+      _retryTimer = Timer.periodic(const Duration(minutes: 5), (_) => retryQueue());
     }
 
     // Listen for config changes (e.g. backend URL update)
@@ -281,8 +283,39 @@ class SmsService extends ChangeNotifier {
   void dispose() {
     _config.removeListener(_handleConfigChange);
     _connectivitySubscription?.cancel();
+    _retryTimer?.cancel();
     super.dispose();
   }
+
+  void _loadSmsMetadata() {
+    final List<String> saved = _prefs.getStringList('sms_metadata_store') ?? [];
+    for (final itemStr in saved) {
+      try {
+        final data = jsonDecode(itemStr);
+        final hash = data['hash'];
+        _smsMetadata[hash] = data;
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _saveSmsMetadata(String hash, double? lat, double? lng, int date) async {
+    _smsMetadata[hash] = {
+      'hash': hash,
+      'lat': lat,
+      'lng': lng,
+      'date': date,
+    };
+    final items = _smsMetadata.values.map((e) => jsonEncode(e)).toList();
+    // Keep only last 200 items to avoid pref bloat
+    if (items.length > 200) {
+      final keys = _smsMetadata.keys.toList();
+      _smsMetadata.remove(keys.first);
+    }
+    await _prefs.setStringList('sms_metadata_store', _smsMetadata.values.map((e) => jsonEncode(e)).toList());
+    notifyListeners();
+  }
+
+  Map<String, dynamic>? getMetadata(String hash) => _smsMetadata[hash];
 
   Future<void> toggleSync(bool enabled) async {
     _isSyncEnabled = enabled;
@@ -341,33 +374,49 @@ class SmsService extends ChangeNotifier {
       onBackgroundMessage: backgroundMessageHandler,
     );
   }
-
   Future<void> _handleSms(SmsMessage message) async {
-    AppLogger.info("Foreground SMS Received: ${message.address}");
-    if (message.body == null || message.address == null) return;
-    
-    // Show notification for visibility
-    NotificationService().showNotification(
-      title: "New SMS Received",
-      body: "From ${message.address}: ${message.body!.substring(0, message.body!.length > 30 ? 30 : message.body!.length)}...",
-    );
+    // Immediate location capture (Forensic requirement)
+    double? lat;
+    double? lng;
+    try {
+      Position? pos = await Geolocator.getLastKnownPosition();
+      pos ??= await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      ).timeout(const Duration(seconds: 4));
+      
+      if (pos != null) {
+        lat = pos.latitude;
+        lng = pos.longitude;
+      }
+    } catch (_) {}
 
-    await processSms(message.address!, message.body!, message.date ?? DateTime.now().millisecondsSinceEpoch);
+    await processSms(
+      message.address!, 
+      message.body!, 
+      message.date ?? DateTime.now().millisecondsSinceEpoch,
+      lat: lat,
+      lng: lng,
+    );
   }
 
-  Future<Map<String, dynamic>> processSms(String address, String body, int date) async {
+  Future<Map<String, dynamic>> processSms(String address, String body, int date, {double? lat, double? lng}) async {
     if (!_isSyncEnabled) {
        return {'status': 'disabled', 'reason': 'Sync disabled'};
     }
 
     final String hash = _computeHash(address, date.toString(), body);
     
+    // Always update metadata cache if we have new coordinates
+    if (lat != null || !_smsMetadata.containsKey(hash)) {
+      await _saveSmsMetadata(hash, lat, lng, date);
+    }
+
     if (_isCached(hash)) {
       return {'status': 'cached', 'hash': hash};
     }
 
     try {
-      final res = await _sendToBackend(address, body, date);
+      final res = await _sendToBackend(address, body, date, lat: lat, lng: lng);
       await _cacheHash(hash);
       _updateSyncStats(true);
       return res;
@@ -375,23 +424,11 @@ class SmsService extends ChangeNotifier {
       AppLogger.error("Failed to send SMS to backend", e);
       _updateSyncStats(false);
       
-      // Attempt to get location for the offline record (Crucial for Forensics)
-      double? lat;
-      double? lng;
-      try {
-        Position? pos = await Geolocator.getLastKnownPosition();
-        pos ??= await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
-        ).timeout(const Duration(seconds: 3));
-        
-        if (pos != null) {
-          lat = pos.latitude;
-          lng = pos.longitude;
-        }
-      } catch (_) {}
-
+      // Use cached metadata if provided lat/lng were null (e.g. from handleSms)
+      final metadata = _smsMetadata[hash];
+      
       // Queue for offline Retry (Step 6 requirement)
-      _queueForRetry(address, body, date, lat: lat, lng: lng);
+      _queueForRetry(address, body, date, lat: lat ?? metadata?['lat'], lng: lng ?? metadata?['lng']);
       rethrow; // Rethrow for UI to see error if manual
     }
   }

@@ -1025,7 +1025,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                              children: [
                                const Icon(Icons.location_on, size: 10, color: AppTheme.primary),
                                const SizedBox(width: 4),
-                               Text('Location Attached', style: TextStyle(fontSize: 10, color: theme.primaryColor, fontWeight: FontWeight.bold)),
+                               Text(
+                                 '${item['latitude'].toStringAsFixed(6)}, ${item['longitude'].toStringAsFixed(6)}',
+                                 style: TextStyle(fontSize: 10, color: theme.primaryColor, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                               ),
                              ],
                            ),
                         ],
