@@ -1,46 +1,48 @@
-# WealthFam Mobile: Financial Forensics on the Go
+# 📱 WealthFam Mobile
 
-WealthFam Mobile is a Flutter-based Android application that serves as the primary real-time ingestion source for the WealthFam ecosystem.
+<div align="center">
 
-## ✨ Core Functionalities
+[![Version](https://img.shields.io/badge/Version-Flutter--M3-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev/)
+[![Language](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart)](https://dart.dev/)
+[![Ingestion](https://img.shields.io/badge/Source-Real_Time_SMS-e11d48?style=for-the-badge)](https://flutter.dev/)
 
-### 1. SMS Ingestion (Real-Time)
-The app runs a background service that listens for transactional SMS from banks and credit cards. It immediately hashes the content and forwards it to the Parser Microservice for processing.
+**The mobile companion for real-time financial forensic ingestion.**  
+*Seamlessly capturing the pulse of your finances as they happen.*
 
-### 2. Mobile Dashboard
-A streamlined version of the web dashboard, providing "at-a-glance" stats:
-- Current Month Spends
-- Recent Transactions
-- Budget Alerting
-
-### 3. Account Management
-Users can view and manage their linked bank accounts and mutual fund portfolios directly from the app.
-
-## 🛠️ Tech Stack
-- **Flutter**: Cross-platform framework (optimized for Android).
-- **Dart**: Strong, typed language for robust app logic.
-- **SMS Listeners**: Native integration for high-reliability background ingestion.
-- **REST API**: Communicates with the Backend and Parser services.
-
-## 🏁 Getting Started
-
-### Prerequisites
-- Flutter SDK (latest stable)
-- Android Studio / VS Code
-- Android Device (physical device required for SMS testing)
-
-### Installation
-1. Clone the repository.
-2. Run `flutter pub get`.
-3. Configure the backend URL in `lib/config.dart`.
-4. Build and install:
-   ```bash
-   flutter run --release
-   ```
-
-## 🔐 Permissions Required
-- **RECEIVE_SMS / READ_SMS**: Critical for the ingestion engine.
-- **INTERNET**: To sync data with the WealthFam cloud/server.
+</div>
 
 ---
-*WealthFam: Invisible Financial Automation*
+
+## 🚀 Overview
+
+WealthFam Mobile (Android) serves as the primary gateway for real-time data capture. By integrating deeply with native SMS listeners and background services, it ensures that every financial notification is instantly hashed and securely processed.
+
+---
+
+## 🛠️ Technical Stack
+
+| Category | Technology |
+| :--- | :--- |
+| **Framework** | [Flutter](https://flutter.dev/) (3.x) |
+| **Language** | [Dart](https://dart.dev/) |
+| **Native Integration** | Android SMS Listeners |
+| **Authentication** | Biometric-ready REST client |
+
+---
+
+## 🏁 Development
+
+To run the mobile app locally or build for Android, please refer to the technical guides:
+
+[**🛠️ Master Setup Guide**](../../Docs/technical/development/setup.md)
+
+---
+
+## 📖 Key Documentation
+- **[📲 Native Architecture](../../Docs/technical/mobile/native_architecture.md)**: SMS listeners & security.
+- **[🛠️ Technical Setup](../../Docs/technical/development/setup.md)**: Environment installation.
+
+---
+<div align="center">
+*Maintained by the WealthFam Mobile Team*
+</div>
