@@ -12,6 +12,9 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +39,12 @@ jobs:
       - name: Rename APK
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            NAME="WealthFam-v${{ github.ref_name }}.apk"
+            # If tag already starts with v, don't add another v
+            if [[ "${{ github.ref_name }}" == v* ]]; then
+              NAME="WealthFam-${{ github.ref_name }}.apk"
+            else
+              NAME="WealthFam-v${{ github.ref_name }}.apk"
+            fi
           else
             NAME="WealthFam-master-build-${{ github.run_number }}.apk"
           fi
@@ -51,11 +59,14 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
         with:
           files: build/app/outputs/flutter-apk/${{ env.APK_NAME }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('release-master-{0}', github.run_number) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('Master Build {0}', github.run_number) }}
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
