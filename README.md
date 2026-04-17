@@ -22,7 +22,7 @@ WealthFam Mobile (Android) serves as the primary gateway for real-time data capt
 ## 🛠️ Technical Stack at a Glance
 
 For a detailed breakdown of our technical choices, see:  
-[**📖 Deep Dive: The WealthFam Stack**](../Docs/technical/stack.md)
+[**📖 Deep Dive: The WealthFam Stack**](https://wealthfam.github.io/docs/technical/stack)
 
 | Category | Technology |
 | :--- | :--- |
@@ -37,8 +37,8 @@ For a detailed breakdown of our technical choices, see:
 
 The app uses a dual-layer approach, combining Flutter UI with low-level Android native listeners for high-reliability background ingestion.
 
-- **[🏛️ System Overview](../Docs/technical/architecture/system_overview.md)**
-- **[📲 Native Architecture](../Docs/technical/mobile/native_architecture.md)**
+- **[🏛️ System Overview](https://wealthfam.github.io/docs/technical/architecture/system_overview)**
+- **[📲 Native Architecture](https://wealthfam.github.io/docs/technical/mobile/native_architecture)**
 
 ---
 
@@ -46,7 +46,7 @@ The app uses a dual-layer approach, combining Flutter UI with low-level Android 
 
 To build the mobile app or contribute to the native listeners:
 
-[**🛠️ Master Setup Guide**](../Docs/technical/getting_started.md)
+[**🛠️ Master Setup Guide**](https://wealthfam.github.io/docs/technical/getting_started)
 
 ---
 <div align="center">
