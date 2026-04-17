@@ -6,6 +6,8 @@
 [![Language](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart)](https://dart.dev/)
 [![Status](https://img.shields.io/badge/Docs-Technical_Hub-e11d48?style=for-the-badge)](https://wealthfam.github.io/docs)
 
+<img src="assets/branding/logo.png" width="128" height="128" />
+
 **The mobile companion for real-time financial forensic ingestion.**  
 *Seamlessly capturing the pulse of your finances as they happen.*
 
