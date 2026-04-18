@@ -399,10 +399,10 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
 
   Future<Either<Failure, Map<String, dynamic>>> aiForensicParse(String content) async {
     return callWithResilience<Map<String, dynamic>>(
-      call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/mobile/ai/forensic-parse')
-            .replace(queryParameters: {'content': content}),
+      call: () => http.post(
+        Uri.parse('${_config.backendUrl}/api/v1/mobile/ai/forensic-parse'),
         headers: _getHeaders(),
+        body: jsonEncode({'content': content}),
       ),
       onSuccess: (body) => jsonDecode(body),
     );
@@ -507,3 +507,4 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     };
   }
 }
+
