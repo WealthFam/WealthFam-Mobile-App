@@ -19,9 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SmsService>().syncUnsyncedOnStart();
-    });
   }
 
   @override

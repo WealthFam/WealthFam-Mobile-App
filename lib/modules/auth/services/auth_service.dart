@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService extends ChangeNotifier {
   final AppConfig _config;
@@ -170,6 +171,12 @@ class AuthService extends ChangeNotifier {
     _userAvatar = null;
     _isApproved = false;
     stopHeartbeat();
+    
+    // Clear mirrored credentials for Native Bridge
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('backend_url');
+    await prefs.remove('access_token');
+    
     notifyListeners();
   }
 

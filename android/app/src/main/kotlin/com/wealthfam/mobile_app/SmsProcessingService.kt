@@ -56,7 +56,6 @@ class SmsProcessingService : Service() {
 
             val timestamp = System.currentTimeMillis()
             val random = (0..999).random()
-            val itemKey = "flutter.sms_relay_item_${timestamp}_$random"
             
             val json = JSONObject()
             json.put("sender", sender)

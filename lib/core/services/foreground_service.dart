@@ -8,7 +8,6 @@ import 'package:mobile_app/core/services/foreground_task_handler.dart';
 
 class ForegroundServiceWrapper {
   static Future<void> init() async {
-    debugPrint("ForegroundService: Initializing...");
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'wealthfam_fg_sync',
@@ -25,7 +24,7 @@ class ForegroundServiceWrapper {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(600000),
+        eventAction: ForegroundTaskEventAction.repeat(5000), // 5s heartbeat for near-instant relay
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
         allowWakeLock: true,
@@ -33,21 +32,24 @@ class ForegroundServiceWrapper {
         stopWithTask: false,
       ),
     );
-    debugPrint("ForegroundService: Init complete");
+      ),
+    );
   }
 
-  static Future<bool> start({required String url, required String token}) async {
-    debugPrint("ForegroundService: Start Requested");
+  static Future<bool> start({required String url, required String token, String? deviceId}) async {
     
     try {
       await FlutterForegroundTask.saveData(key: 'backend_url', value: url);
       await FlutterForegroundTask.saveData(key: 'access_token', value: token);
+      if (deviceId != null) {
+        await FlutterForegroundTask.saveData(key: 'device_id', value: deviceId);
+      }
 
       final NotificationPermission permission = await FlutterForegroundTask.checkNotificationPermission();
       if(permission != NotificationPermission.granted) {
         final result = await FlutterForegroundTask.requestNotificationPermission();
         if (result != NotificationPermission.granted) {
-          debugPrint("ForegroundService: Notification permission denied");
+        if (result != NotificationPermission.granted) {
           return false;
         }
       }
@@ -59,13 +61,10 @@ class ForegroundServiceWrapper {
 
       final isRunning = await FlutterForegroundTask.isRunningService;
       if (isRunning) {
-        debugPrint("ForegroundService: Restarting existing service");
-        await FlutterForegroundTask.restartService();
-        _triggerManualUpdate();
-        return true;
+        await FlutterForegroundTask.stopService();
+        await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      debugPrint("ForegroundService: Starting new service");
       final result = await FlutterForegroundTask.startService(
         serviceTypes: [ForegroundServiceTypes.dataSync],
         notificationTitle: 'WealthFam Guard',
@@ -81,21 +80,18 @@ class ForegroundServiceWrapper {
       );
       
       if (result is ServiceRequestFailure) {
-        debugPrint("ForegroundService: Start failed: ${result.error}");
+        // Handle failure silently or log to AppLogger if available
       } else {
-        debugPrint("ForegroundService: Start success");
         _triggerManualUpdate();
       }
       
       return true;
     } catch (e) {
-      debugPrint("ForegroundService: Exception: $e");
       return false;
     }
   }
 
   static Future<void> stop() async {
-    debugPrint("ForegroundService: Stopping service");
     await FlutterForegroundTask.stopService();
   }
 
@@ -131,10 +127,8 @@ class ForegroundServiceWrapper {
             notificationTitle: 'WealthFam Guard',
             notificationText: 'Spending: $currency$today (Today) • $currency$month (Month)\nLast Updated: $timeStr',
           );
-          debugPrint("ForegroundService: Initial update complete");
         }
       } catch (e) {
-        debugPrint("ForegroundService: Initial update failed: $e");
       }
     }();
   }

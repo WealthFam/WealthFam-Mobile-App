@@ -17,6 +17,7 @@ class SocketService extends ChangeNotifier {
   WebSocketChannel? _channel;
   bool _isConnected = false;
   Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
 
   bool get isConnected => _isConnected;
 
@@ -74,6 +75,7 @@ class SocketService extends ChangeNotifier {
         (message) {
           if (!_isConnected) {
             _isConnected = true;
+            _reconnectAttempts = 0; // Reset attempts on success
             notifyListeners();
           }
           _handleMessage(message);
@@ -130,8 +132,14 @@ class SocketService extends ChangeNotifier {
 
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 5), () {
+    
+    // Bug 7 Fix: Exponential Backoff
+    final delaySeconds = (5 * (1 << _reconnectAttempts)).clamp(5, 300); // 5s, 10s, 20s... max 5m
+    AppLogger.info('SocketService: Reconnecting in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})');
+    
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!_isConnected && _auth.isAuthenticated) {
+        _reconnectAttempts++;
         connect();
       }
     });

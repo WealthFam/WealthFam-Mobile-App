@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
@@ -15,129 +16,14 @@ import 'package:mobile_app/core/services/notification_service.dart';
 import 'package:mobile_app/core/services/foreground_service.dart';
 import 'package:mobile_app/core/utils/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 
 extension PlatformCheck on TargetPlatform {
   bool get shouldUseTelephony => this == TargetPlatform.android;
 }
 
-// Top-level function for background execution
-@pragma('vm:entry-point')
-void backgroundMessageHandler(SmsMessage message) async {
-  WidgetsFlutterBinding.ensureInitialized();
-  if (message.body == null || message.address == null) return;
-  AppLogger.info("Background SMS: ${message.body}");
-  
-  try {
-    // 1. Initialize Prefs
-    final prefs = await SharedPreferences.getInstance();
-    final isSyncEnabled = prefs.getBool('is_sync_enabled') ?? true;
-    
-    if (!isSyncEnabled) {
-      debugPrint("Background SMS: Sync disabled");
-      return;
-    }
-
-    final backendUrl = prefs.getString('backend_url');
-    final accessToken = prefs.getString('access_token');
-    final deviceId = prefs.getString('device_id') ?? 'BG_SERVICE';
-    
-    if (backendUrl == null || accessToken == null) {
-      debugPrint("Background SMS: Missing credentials");
-      // Queue for later? Complex in background. 
-      // We rely on the app opening later and queuing via standard flow? 
-      // Actually we can try to queue to 'sms_offline_queue' here
-      return; 
-    }
-
-    // 2. Compute Hash (Duplicate logic from SmsService to avoid dependency issues)
-    final date = message.date ?? DateTime.now().millisecondsSinceEpoch;
-    final raw = "${message.address}-$date-${message.body}";
-    final hash = sha256.convert(utf8.encode(raw)).toString();
-
-    // 3. Check Cache
-    if (prefs.containsKey('sms_hash_$hash')) {
-       debugPrint("Background SMS: Already processed");
-       return;
-    }
-
-    final sendDebugPayload = prefs.getBool(AppConfig.keySendDebugPayload) ?? false;
-
-    // 4. Try to get Location in background (High Priority for Precisions)
-    double? lat;
-    double? lng;
-    try {
-      // First try last known position for speed
-      Position? position = await Geolocator.getLastKnownPosition();
-      
-      // If none or stale, try a quick current position fetch
-      position ??= await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
-      ).timeout(const Duration(seconds: 4));
-
-      if (position != null) {
-        lat = position.latitude;
-        lng = position.longitude;
-      }
-    } catch (e) {
-      debugPrint("Background SMS: Location fetch failed: $e");
-    }
-
-    // 5. Send to Backend
-    final payload = {
-      'sender': message.address,
-      'message': message.body,
-      'device_id': deviceId, 
-      'latitude': lat,
-      'longitude': lng,
-    };
-
-    if (sendDebugPayload) {
-      final logsStr = prefs.getStringList('sms_debug_logs') ?? [];
-      logsStr.insert(0, jsonEncode(payload));
-      if (logsStr.length > 10) logsStr.removeLast();
-      await prefs.setStringList('sms_debug_logs', logsStr);
-    }
-
-    final url = Uri.parse('$backendUrl/api/v1/ingestion/sms');
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
-      body: jsonEncode(payload),
-    );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-       debugPrint("Background SMS: Sent successfully");
-       // 5. Cache Hash
-       await prefs.setBool('sms_hash_$hash', true);
-       
-       // Update stats if we can
-       final current = prefs.getInt('msgs_synced_today') ?? 0;
-       await prefs.setInt('msgs_synced_today', current + 1);
-
-       // Optional: Notification for background sync (can be noisy, but good for debugging)
-       // NotificationService().showNotification(title: "SMS Synced", body: "From ${message.address}");
-    } else {
-        // Add to offline queue with location if available
-        final queue = prefs.getStringList('sms_offline_queue') ?? [];
-        final item = {
-           'address': message.address,
-           'body': message.body,
-           'date': date,
-           'timestamp': DateTime.now().millisecondsSinceEpoch,
-           'latitude': lat,
-           'longitude': lng,
-        };
-        queue.add(jsonEncode(item));
-        await prefs.setStringList('sms_offline_queue', queue);
-    }
-  } catch (e) {
-     debugPrint("Background SMS Error: $e");
-  }
-}
+// Top-level background execution is now handled natively in Kotlin (SmsReceiver.kt)
 
 class SmsService extends ChangeNotifier {
   final AppConfig _config;
@@ -155,6 +41,8 @@ class SmsService extends ChangeNotifier {
   String? _lastSyncStatus;
   List<Map<String, dynamic>> _debugLogs = [];
   bool _isSyncing = false;
+  final Set<String> _syncedHashes = {};
+  String? _resolvedFilesPath;
 
   bool get isSyncEnabled => _isSyncEnabled;
   bool get isForegroundServiceEnabled => _isForegroundServiceEnabled;
@@ -163,11 +51,61 @@ class SmsService extends ChangeNotifier {
   int get messagesSyncedToday => _messagesSyncedToday;
   String? get lastSyncStatus => _lastSyncStatus;
   bool get isSyncing => _isSyncing;
-  int get queueCount => (_prefs.getStringList(keyQueue) ?? []).length;
+  int get queueCount => _getSafeQueueItems().length;
+
+  List<String> _getSafeQueueItems() {
+    try {
+      final dynamic raw = _prefs.get(keyQueue);
+      if (raw == null) return [];
+      if (raw is List) return raw.map((e) => e.toString()).toList();
+      
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
 
   List<Map<String, dynamic>> getQueueItems() {
-    final List<String> queue = _prefs.getStringList(keyQueue) ?? [];
+    final List<String> queue = _getSafeQueueItems();
     return queue.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+  }
+
+  bool isInOfflineQueue(String hash) {
+    // Check both the offline retry queue AND the native bridge queue
+    final List<String> offlineQueue = _getSafeQueueItems();
+    
+    // New individual relay files (Direct File System check)
+    final List<String> newRelayItems = [];
+    try {
+      final rootPath = _resolvedFilesPath ?? '/data/user/0/com.wealthfam.mobile_app';
+      final directory = Directory('$rootPath/files/sms_relay');
+      if (directory.existsSync()) {
+        final files = directory.listSync();
+        for (var file in files) {
+          if (file is File && file.path.endsWith('.json')) {
+            newRelayItems.add(file.readAsStringSync());
+          }
+        }
+      }
+    } catch (e) {
+    }
+    
+    final allItems = [...offlineQueue, ...newRelayItems];
+    
+    return allItems.any((item) {
+      try {
+        final decoded = jsonDecode(item);
+        final itemHash = decoded['hash'] ?? 
+                         _computeHash(
+                           (decoded['address'] ?? decoded['sender'] ?? '').toString(), 
+                           (decoded['date']).toString(), 
+                           (decoded['body'] ?? decoded['message'] ?? '').toString()
+                         );
+        return itemHash == hash;
+      } catch (_) {
+        return false;
+      }
+    });
   }
   
   // Metadata cache: hash -> {'lat': double, 'lng': double, 'time': int}
@@ -217,6 +155,16 @@ class SmsService extends ChangeNotifier {
     }
     
     _loadDebugLogs();
+
+    // Resolve absolute path dynamically
+    try {
+      final Directory? appDir = await getApplicationSupportDirectory().catchError((_) => null);
+      _resolvedFilesPath = appDir?.parent.path ?? '/data/user/0/com.wealthfam.mobile_app';
+    } catch (e) {
+      _resolvedFilesPath = '/data/user/0/com.wealthfam.mobile_app';
+    }
+
+    await _loadSyncedHashesJournal();
     
     if (kIsWeb || !defaultTargetPlatform.shouldUseTelephony) {
        AppLogger.info("SMS features disabled: Not on Android.");
@@ -234,15 +182,19 @@ class SmsService extends ChangeNotifier {
       }
 
       _startListening();
+      debugPrint("SmsService: Real-time SMS Listener Started.");
+      
       if (_isForegroundServiceEnabled && _auth.accessToken != null) {
         ForegroundServiceWrapper.start(
           url: _config.backendUrl,
           token: _auth.accessToken!,
+          deviceId: _auth.deviceId,
         );
       }
       
       // Retry any queued messages from previous sessions
       retryQueue();
+      // syncUnsyncedOnStart(); // Moved to background task for better UI performance
 
       // Listen for connectivity changes to auto-retry
       _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
@@ -280,6 +232,7 @@ class SmsService extends ChangeNotifier {
       ForegroundServiceWrapper.start(
         url: _config.backendUrl,
         token: _auth.accessToken!,
+        deviceId: _auth.deviceId,
       );
     }
   }
@@ -348,6 +301,7 @@ class SmsService extends ChangeNotifier {
       await ForegroundServiceWrapper.start(
         url: _config.backendUrl,
         token: _auth.accessToken!,
+        deviceId: _auth.deviceId,
       );
       // Don't throw error based on return value - Android 14+ often returns false even on success
     } else {
@@ -372,38 +326,13 @@ class SmsService extends ChangeNotifier {
   }
 
   void _startListening() {
-    _telephony.listenIncomingSms(
-      onNewMessage: (SmsMessage message) {
-        _handleSms(message);
-      },
-      onBackgroundMessage: backgroundMessageHandler,
-    );
-  }
-  Future<void> _handleSms(SmsMessage message) async {
-    // Immediate location capture (Precision requirement)
-    double? lat;
-    double? lng;
-    try {
-      Position? pos = await Geolocator.getLastKnownPosition();
-      pos ??= await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
-      ).timeout(const Duration(seconds: 4));
-      
-      if (pos != null) {
-        lat = pos.latitude;
-        lng = pos.longitude;
-      }
-    } catch (_) {}
-
-    await processSms(
-      message.address!, 
-      message.body!, 
-      message.date ?? DateTime.now().millisecondsSinceEpoch,
-      lat: lat,
-      lng: lng,
-    );
+    // Real-time interception is now handled by Native Kotlin (SmsReceiver.kt).
+    // The native receiver writes directly to the shared queue and pushes to backend.
+    // We no longer need a foreground Dart listener which would cause duplicates.
+    debugPrint("SmsService: Real-time listening delegated to Native Bridge.");
   }
 
+  // processSms is still used for manual imports/scans
   Future<Map<String, dynamic>> processSms(String address, String body, int date, {double? lat, double? lng}) async {
     if (!_isSyncEnabled) {
        return {'status': 'disabled', 'reason': 'Sync disabled'};
@@ -420,39 +349,105 @@ class SmsService extends ChangeNotifier {
       return {'status': 'cached', 'hash': hash};
     }
 
+    // Bug 2 Fix: Store-and-Forward (Write-first)
+    // Queue immediately before trying network
+    final metadata = _smsMetadata[hash];
+    await _queueForRetry(address, body, date, lat: lat ?? metadata?['lat'], lng: lng ?? metadata?['lng']);
+
     try {
       final res = await _sendToBackend(address, body, date, lat: lat, lng: lng);
+      
+      // Success! Mark cached and remove from queue
       await _cacheHash(hash);
       _updateSyncStats(true);
+      
+      // Dequeue
+      final List<String> queue = _getSafeQueueItems();
+      queue.removeWhere((item) {
+        try {
+          final decoded = jsonDecode(item);
+          return _computeHash(decoded['address'], decoded['date'].toString(), decoded['body']) == hash;
+        } catch (_) {
+          return false;
+        }
+      });
+      await _prefs.setStringList(keyQueue, queue);
+
       return res;
     } catch (e) {
       AppLogger.error("Failed to send SMS to backend", e);
       _updateSyncStats(false);
-      
-      // Use cached metadata if provided lat/lng were null (e.g. from handleSms)
-      final metadata = _smsMetadata[hash];
-      
-      // Queue for offline Retry (Step 6 requirement)
-      _queueForRetry(address, body, date, lat: lat ?? metadata?['lat'], lng: lng ?? metadata?['lng']);
-      rethrow; // Rethrow for UI to see error if manual
+      rethrow; // Stay in queue for retry later
     }
   }
 
-  String computeHash(String address, String date, String body) {
-    final raw = "$address-$date-$body";
+  String computeHash(String address, String dateStr, String body) {
+    // Robust Normalization: Use Hour-level precision to avoid jitter issues
+    String cleanDate = dateStr;
+    try {
+      final ms = int.tryParse(dateStr) ?? double.parse(dateStr).toInt();
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      // Format: YYYYMMDDHH
+      cleanDate = "${dt.year}${dt.month.toString().padLeft(2, '0')}${dt.day.toString().padLeft(2, '0')}${dt.hour.toString().padLeft(2, '0')}";
+    } catch (_) {
+      // Fallback to original if parse fails
+    }
+
+    // Aggressive Normalization: Strip everything except letters and numbers
+    final cleanAddress = address.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final cleanBody = body.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    
+    final raw = "$cleanAddress-$cleanDate-$cleanBody";
     return sha256.convert(utf8.encode(raw)).toString();
   }
 
   String _computeHash(String address, String date, String body) => computeHash(address, date, body);
 
   bool isCached(String hash) {
+    if (_syncedHashes.contains(hash)) return true;
+    
+    // Fallback to SharedPreferences
     return _prefs.containsKey('sms_hash_$hash');
   }
 
   bool _isCached(String hash) => isCached(hash);
 
+  Future<void> _loadSyncedHashesJournal() async {
+    try {
+      final rootPath = _resolvedFilesPath ?? '/data/user/0/com.wealthfam.mobile_app';
+      final journal = File('$rootPath/files/synced_hashes.db');
+      if (await journal.exists()) {
+        final lines = await journal.readAsLines();
+        _syncedHashes.addAll(lines.where((l) => l.isNotEmpty));
+      }
+    } catch (e) {
+      debugPrint("SmsService: Journal load failed: $e");
+    }
+  }
+
   Future<void> cacheHash(String hash) async {
+    if (_syncedHashes.contains(hash)) return;
+    
+    _syncedHashes.add(hash);
+    
+    // Append to Persistent Journal (Scalable & Process Safe)
+    try {
+      final rootPath = _resolvedFilesPath ?? '/data/user/0/com.wealthfam.mobile_app';
+      final dir = Directory('$rootPath/files');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final journal = File('${dir.path}/synced_hashes.db');
+      await journal.writeAsString('$hash\n', mode: FileMode.append, flush: true);
+    } catch (e) {
+    }
+
     await _prefs.setBool('sms_hash_$hash', true);
+    notifyListeners();
+  }
+
+  void forceRefresh(String hash) {
+      _syncedHashes.add(hash);
+      notifyListeners();
+    }
   }
 
   Future<void> _cacheHash(String hash) async => cacheHash(hash);
@@ -479,7 +474,7 @@ class SmsService extends ChangeNotifier {
       throw Exception("Not Authenticated");
     }
 
-    // Get Location if possible (High Priority for Precisions)
+    // Get Location if possible
     double? finalLat = lat;
     double? finalLng = lng;
     
@@ -487,7 +482,6 @@ class SmsService extends ChangeNotifier {
       try {
         LocationPermission permission = await Geolocator.checkPermission();
         if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-          // Try last known first
           Position? position = await Geolocator.getLastKnownPosition();
           position ??= await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
@@ -504,44 +498,60 @@ class SmsService extends ChangeNotifier {
     }
 
     final url = Uri.parse('${_config.backendUrl}/api/v1/ingestion/sms');
+    final hash = _computeHash(address, date.toString(), body);
     
     final payload = {
       'sender': address,
       'message': body,
+      'date': date,
+      'hash': hash,
       'device_id': _auth.deviceId,
       'latitude': finalLat,
       'longitude': finalLng,
     };
 
-    if (_config.sendDebugPayload) {
-      _debugLogs.insert(0, payload);
-      if (_debugLogs.length > 10) _debugLogs.removeLast();
-      await _prefs.setStringList('sms_debug_logs', _debugLogs.map((e) => jsonEncode(e)).toList());
-      notifyListeners();
+    int attempts = 0;
+    Exception? lastError;
+
+    while (attempts < 5) {
+      attempts++;
+      try {
+        debugPrint("SmsService: Sync attempt $attempts for $hash");
+        final response = await http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${_auth.accessToken}',
+          },
+          body: jsonEncode(payload),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          if (_config.sendDebugPayload) {
+            _debugLogs.insert(0, payload);
+            if (_debugLogs.length > 10) _debugLogs.removeLast();
+            await _prefs.setStringList('sms_debug_logs', _debugLogs.map((e) => jsonEncode(e)).toList());
+          }
+          return jsonDecode(response.body);
+        } else {
+          final detail = jsonDecode(response.body)['detail'] ?? 'Backend Error';
+          lastError = Exception("$detail (${response.statusCode})");
+          if (attempts < 5) await Future.delayed(const Duration(seconds: 2));
+        }
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        if (attempts < 5) await Future.delayed(const Duration(seconds: 2));
+      }
     }
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${_auth.accessToken}',
-      },
-      body: jsonEncode(payload),
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      final detail = jsonDecode(response.body)['detail'] ?? 'Backend Error';
-      throw Exception("$detail (${response.statusCode})");
-    }
-
-    return jsonDecode(response.body);
+    throw lastError ?? Exception("Failed after 5 attempts");
   }
 
   // --- Offline Queue Logic ---
   static const String keyQueue = 'sms_offline_queue';
 
   Future<void> _queueForRetry(String address, String body, int date, {double? lat, double? lng}) async {
-    final List<String> queue = _prefs.getStringList(keyQueue) ?? [];
+    final List<String> queue = _getSafeQueueItems();
     
     final item = {
       'address': address,
@@ -561,7 +571,8 @@ class SmsService extends ChangeNotifier {
 
   Future<void> retryQueue() async {
     if (_isRetrying) return;
-    final List<String> queue = _prefs.getStringList(keyQueue) ?? [];
+    await _prefs.reload();
+    final List<String> queue = _getSafeQueueItems();
     if (queue.isEmpty) return;
 
     _isRetrying = true;
@@ -632,8 +643,12 @@ class SmsService extends ChangeNotifier {
   
   Future<void> syncUnsyncedOnStart() async {
     if (kIsWeb || !defaultTargetPlatform.shouldUseTelephony) return;
-    debugPrint("SmsService: Starting background sync of recent messages...");
-    await syncLastHours(120);
+    
+    // Delay startup scan to let the main UI load and background task stabilize
+    Future.delayed(const Duration(seconds: 10), () async {
+      debugPrint("SmsService: Starting background sync of recent messages (24h window)...");
+      await syncLastHours(24);
+    });
   }
 
   Future<int> pushAllUnsynced() async {
@@ -673,6 +688,7 @@ class SmsService extends ChangeNotifier {
        return 0;
     }
 
+    await _prefs.reload();
     notifyListeners(); // Update UI loading state if binding
     
     final cutoffMs = fromDate.millisecondsSinceEpoch;
@@ -704,6 +720,7 @@ class SmsService extends ChangeNotifier {
   Future<List<SmsMessage>> getAllMessages() async {
     if (kIsWeb || !defaultTargetPlatform.shouldUseTelephony) return [];
     
+    await _prefs.reload();
     final isGranted = await _requestSmsPermission();
     if (!isGranted) {
       debugPrint("SmsService: READ_SMS permission denied");
@@ -762,6 +779,14 @@ class SmsService extends ChangeNotifier {
     } else {
       _lastSyncStatus = "Failed";
     }
+    notifyListeners();
+  }
+
+  Future<void> forceRefresh([String? hash]) async {
+    if (hash != null) {
+      _syncedHashes.add(hash);
+    }
+    await _prefs.reload();
     notifyListeners();
   }
 }

@@ -40,7 +40,6 @@ void main() async {
     await auth.init().timeout(const Duration(seconds: 3));
     await security.init().timeout(const Duration(seconds: 3));
   } catch (e) {
-    debugPrint("Startup services initialized with issues: $e");
   }
 
   _initSecondaryServices(notifications);
@@ -56,10 +55,12 @@ void main() async {
   if (auth.isAuthenticated) {
     socket.connect();
     SharedPreferences.getInstance().then((prefs) {
-      if (prefs.getBool('fg_service_enabled') ?? false) {
+      final isEnabled = prefs.getBool('fg_service_enabled') ?? false;
+      if (isEnabled) {
         ForegroundServiceWrapper.start(
           url: config.backendUrl,
           token: auth.accessToken ?? '',
+          deviceId: auth.deviceId,
         );
       }
     });
@@ -75,8 +76,12 @@ void main() async {
 
   if (!kIsWeb) {
     FlutterForegroundTask.addTaskDataCallback((data) {
-      if (data is Map && data['type'] == 'masking_update') {
-        dashboard.updateMaskingFromForeground(data['value']);
+      if (data is Map) {
+        if (data['type'] == 'masking_update') {
+          dashboard.updateMaskingFromForeground(data['value']);
+        } else if (data['type'] == 'sms_synced') {
+          sms.forceRefresh(data['hash']);
+        }
       }
     });
   }
@@ -101,9 +106,7 @@ Future<void> _initSecondaryServices(NotificationService notifications) async {
   try {
     await notifications.init().timeout(const Duration(seconds: 5));
     await ForegroundServiceWrapper.init().timeout(const Duration(seconds: 5));
-    debugPrint("Secondary services (Notifications, Foreground) initialized.");
   } catch (e) {
-    debugPrint("Background Service Init Error: $e");
   }
 }
 

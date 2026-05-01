@@ -441,6 +441,14 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       Text('Synced', style: TextStyle(color: AppTheme.success, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   )
+                else if (smsService.isInOfflineQueue(hash))
+                  Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, color: AppTheme.primary, size: 16),
+                      const SizedBox(width: 4),
+                      Text('Queued', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  )
                 else
                   Row(
                     children: [
@@ -453,6 +461,8 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
             ),
             const SizedBox(height: 4),
             Text(dateStr, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
+            const SizedBox(height: 4),
+            Text("Hash: ${hash.substring(0, 8)}...", style: TextStyle(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), fontSize: 10, fontFamily: 'monospace')),
             
             // Precision Metadata (Location)
             Builder(builder: (context) {
