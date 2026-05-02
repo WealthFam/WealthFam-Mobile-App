@@ -1,3 +1,5 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
@@ -5,12 +7,9 @@ import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
 import 'package:mobile_app/modules/home/models/dashboard_data.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:provider/provider.dart';
-
 import 'package:mobile_app/modules/vault/services/vault_service.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:provider/provider.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   const TransactionDetailScreen({required this.transaction, super.key});
@@ -382,7 +381,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             child: LineChart(
               LineChartData(
                 lineTouchData: LineTouchData(
-                  handleBuiltInTouches: true,
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipColor: (spot) => AppTheme.primary.withValues(alpha: 0.9),
                     getTooltipItems: (spots) => spots.map((s) {
@@ -398,7 +396,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                   ),
                 ),
                 gridData: FlGridData(
-                  show: true,
                   drawVerticalLine: false,
                   horizontalInterval: 1,
                   getDrawingHorizontalLine: (value) => FlLine(
@@ -407,7 +404,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  show: true,
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -416,7 +412,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
                         if (index < 0 || index >= chartData.length) return const SizedBox.shrink();
-                        final monthStr = chartData[index]['month'] as String;
+                        final monthStr = (chartData[index] as Map<String, dynamic>)['month'] as String;
                         final monthPart = monthStr.split('-').last;
                         final months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
                         return Padding(
@@ -434,15 +430,16 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       },
                     ),
                   ),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(),
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
                     spots: chartData.asMap().entries.map((e) {
-                      return FlSpot(e.key.toDouble(), (e.value['amount'] as num).toDouble());
+                      final val = e.value as Map<String, dynamic>;
+                      return FlSpot(e.key.toDouble(), (val['amount'] as num).toDouble());
                     }).toList(),
                     isCurved: true,
                     curveSmoothness: 0.4,
@@ -455,7 +452,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       offset: const Offset(0, 7),
                     ),
                     dotData: FlDotData(
-                      show: true,
                       checkToShowDot: (spot, barData) {
                         final spots = barData.spots;
                         final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
@@ -497,8 +493,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildTrendInfo('Highest', chartData.map((e) => (e['amount'] as num).toDouble()).reduce((a, b) => a > b ? a : b), currencyFormat, dashboard),
-                _buildTrendInfo('Lowest', chartData.map((e) => (e['amount'] as num).toDouble()).reduce((a, b) => a < b ? a : b), currencyFormat, dashboard),
+                _buildTrendInfo('Highest', chartData.map((e) => ((e as Map<String, dynamic>)['amount'] as num).toDouble()).reduce((a, b) => a > b ? a : b), currencyFormat, dashboard),
+                _buildTrendInfo('Lowest', chartData.map((e) => ((e as Map<String, dynamic>)['amount'] as num).toDouble()).reduce((a, b) => a < b ? a : b), currencyFormat, dashboard),
               ],
             ),
           ),
@@ -523,7 +519,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     );
   }
 
-  Widget _buildVendorTransactionItem(dynamic txn) {
+  Widget _buildVendorTransactionItem(dynamic txnRaw) {
+    final txn = txnRaw as Map<String, dynamic>;
     final dashboard = context.read<DashboardService>();
     final date = DateTime.parse(txn['date'] as String);
     final amount = txn['amount'] as num;
@@ -970,27 +967,29 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     if (result == null || result.files.single.path == null) return;
 
     final file = result.files.single;
+    
+    if (!mounted) return;
+    
     final vault = context.read<VaultService>();
-    final messenger = ScaffoldMessenger.of(context);
     
     setState(() => _isLoadingDocs = true);
     final uploadResult = await vault.uploadDocument(
       filePath: file.path!,
       fileName: file.name,
       transactionId: widget.transaction.id,
-      isShared: true,
     );
 
+    if (!mounted) return;
+    
     uploadResult.fold(
       (failure) {
-        if (!mounted) return;
         setState(() => _isLoadingDocs = false);
-        messenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Upload failed: ${failure.message}')),
         );
       },
       (_) {
-        if (mounted) _fetchAttachedDocs();
+        _fetchAttachedDocs();
       },
     );
   }
@@ -998,7 +997,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
 class _VaultDocPicker extends StatefulWidget {
   const _VaultDocPicker({required this.onDocSelected});
-  final Function(VaultDocument) onDocSelected;
+  final void Function(VaultDocument) onDocSelected;
 
   @override
   State<_VaultDocPicker> createState() => _VaultDocPickerState();

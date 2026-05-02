@@ -51,8 +51,12 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
       );
       if (response.statusCode == 200) {
         setState(() {
-          final body = jsonDecode(response.body);
-          _accounts = (body is List) ? body : (body['data'] as List<dynamic>);
+          final dynamic body = jsonDecode(response.body);
+          if (body is List) {
+            _accounts = body;
+          } else if (body is Map<String, dynamic>) {
+            _accounts = (body['data'] as List<dynamic>?) ?? [];
+          }
         });
       }
     } catch (e) {

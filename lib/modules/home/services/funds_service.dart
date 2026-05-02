@@ -103,6 +103,29 @@ class FundsService extends ChangeNotifier {
     fetchSyncStatus();
   }
 
+  Future<FundDetailResponse?> fetchFundDetails(String schemeCode) async {
+    if (_auth.accessToken == null) return null;
+
+    try {
+      final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/funds/$schemeCode');
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${_auth.accessToken}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return FundDetailResponse.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
+      }
+    } catch (e) {
+      debugPrint('Error fetching fund details: $e');
+    }
+    return null;
+  }
+
   Future<void> fetchSyncStatus() async {
     if (_auth.accessToken == null) return;
     try {
