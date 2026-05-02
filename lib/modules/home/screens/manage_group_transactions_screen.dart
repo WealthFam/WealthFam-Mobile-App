@@ -1,18 +1,19 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
+import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:provider/provider.dart';
 
 class ManageGroupTransactionsScreen extends StatefulWidget {
-  final dynamic group;
-  const ManageGroupTransactionsScreen({super.key, required this.group});
+  const ManageGroupTransactionsScreen({required this.group, super.key});
+  final Map<String, dynamic> group;
 
   @override
   State<ManageGroupTransactionsScreen> createState() =>
@@ -49,10 +50,10 @@ class _ManageGroupTransactionsScreenState
       final queryParams = {'page_size': '500'};
 
       if (widget.group['start_date'] != null) {
-        queryParams['start_date'] = widget.group['start_date'];
+        queryParams['start_date'] = widget.group['start_date'] as String;
       }
       if (widget.group['end_date'] != null) {
-        queryParams['end_date'] = widget.group['end_date'];
+        queryParams['end_date'] = widget.group['end_date'] as String;
       }
 
       final url = Uri.parse(
@@ -65,11 +66,12 @@ class _ManageGroupTransactionsScreenState
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> items = data['data'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = data['data'] as List<dynamic>;
 
         final Set<String> selected = {};
-        for (var item in items) {
+        for (var itemRaw in items) {
+          final item = itemRaw as Map<String, dynamic>;
           final gid = item['expense_group_id']?.toString();
           if (gid == widget.group['id'].toString()) {
             selected.add(item['id'].toString());
@@ -153,19 +155,26 @@ class _ManageGroupTransactionsScreenState
 
     final categories =
         _allTransactions
-            .map((t) => t['category']?.toString() ?? 'Uncategorized')
+            .map((tRaw) {
+              final t = tRaw as Map<String, dynamic>;
+              return t['category']?.toString() ?? 'Uncategorized';
+            })
             .toSet()
             .toList()
           ..sort();
 
     final accounts =
         _allTransactions
-            .map((t) => t['account_name']?.toString() ?? 'Unknown Account')
+            .map((tRaw) {
+              final t = tRaw as Map<String, dynamic>;
+              return t['account_name']?.toString() ?? 'Unknown Account';
+            })
             .toSet()
             .toList()
           ..sort();
 
-    final filtered = _allTransactions.where((txn) {
+    final filtered = _allTransactions.where((txnRaw) {
+      final txn = txnRaw as Map<String, dynamic>;
       if (_searchQuery.isNotEmpty) {
         final desc = (txn['description'] ?? '').toString().toLowerCase();
         final acc = (txn['account_name'] ?? '').toString().toLowerCase();
@@ -175,10 +184,10 @@ class _ManageGroupTransactionsScreenState
         }
       }
 
-      if (_filterCategory != null && txn['category'] != _filterCategory) {
+      if (_filterCategory != null && (txn['category'] as String?) != _filterCategory) {
         return false;
       }
-      if (_filterAccount != null && txn['account_name'] != _filterAccount) {
+      if (_filterAccount != null && (txn['account_name'] as String?) != _filterAccount) {
         return false;
       }
       if (_showLinkedOnly && !_selectedIds.contains(txn['id'].toString())) {
@@ -189,10 +198,10 @@ class _ManageGroupTransactionsScreenState
     }).toList();
 
     final pinned = filtered
-        .where((t) => _selectedIds.contains(t['id'].toString()))
+        .where((tRaw) => _selectedIds.contains((tRaw as Map<String, dynamic>)['id'].toString()))
         .toList();
     final available = filtered
-        .where((t) => !_selectedIds.contains(t['id'].toString()))
+        .where((tRaw) => !_selectedIds.contains((tRaw as Map<String, dynamic>)['id'].toString()))
         .toList();
 
     return Scaffold(
@@ -236,7 +245,7 @@ class _ManageGroupTransactionsScreenState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Showing transactions from ${widget.group['start_date'] != null ? DateFormat('MMM d').format(DateTime.parse(widget.group['start_date'])) : "..."} to ${widget.group['end_date'] != null ? DateFormat('MMM d').format(DateTime.parse(widget.group['end_date'])) : "..."}',
+                          'Showing transactions from ${widget.group['start_date'] != null ? DateFormat('MMM d').format(DateTime.parse(widget.group['start_date'] as String)) : "..."} to ${widget.group['end_date'] != null ? DateFormat('MMM d').format(DateTime.parse(widget.group['end_date'] as String)) : "..."}',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey[600],
@@ -257,14 +266,14 @@ class _ManageGroupTransactionsScreenState
                         ),
                         ...pinned.map(
                           (txn) =>
-                              _buildTxnTile(txn, currency, maskingFactor, true),
+                              _buildTxnTile(txn as Map<String, dynamic>, currency, maskingFactor, true),
                         ),
                       ],
                       if (available.isNotEmpty) ...[
                         _buildSectionHeader('AVAILABLE', Colors.grey),
                         ...available.map(
                           (txn) => _buildTxnTile(
-                            txn,
+                            txn as Map<String, dynamic>,
                             currency,
                             maskingFactor,
                             false,
@@ -349,14 +358,14 @@ class _ManageGroupTransactionsScreenState
                   'Category',
                   _filterCategory,
                   categories,
-                  (val) => setState(() => _filterCategory = val),
+                  (String? val) => setState(() => _filterCategory = val),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterDropdown(
                   'Account',
                   _filterAccount,
                   accounts,
-                  (val) => setState(() => _filterAccount = val),
+                  (String? val) => setState(() => _filterAccount = val),
                 ),
               ],
             ),
@@ -370,7 +379,7 @@ class _ManageGroupTransactionsScreenState
     String label,
     String? current,
     List<String> items,
-    Function(String?) onChanged,
+    void Function(String?) onChanged,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -388,7 +397,6 @@ class _ManageGroupTransactionsScreenState
           onChanged: onChanged,
           items: [
             DropdownMenuItem(
-              value: null,
               child: Text('All $label', style: const TextStyle(fontSize: 12)),
             ),
             ...items.map(
@@ -419,14 +427,14 @@ class _ManageGroupTransactionsScreenState
   }
 
   Widget _buildTxnTile(
-    dynamic txn,
+    Map<String, dynamic> txn,
     String currency,
     double maskingFactor,
     bool isSelected,
   ) {
     final id = txn['id'].toString();
     final amount = (txn['amount'] as num).toDouble();
-    final date = DateTime.parse(txn['date']).toLocal();
+    final date = DateTime.parse(txn['date'] as String).toLocal();
 
     return CheckboxListTile(
       value: isSelected,
@@ -440,7 +448,7 @@ class _ManageGroupTransactionsScreenState
         });
       },
       title: Text(
-        txn['description'] ?? 'Unnamed',
+        txn['description'] as String? ?? 'Unnamed',
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           fontSize: 14,
@@ -453,7 +461,7 @@ class _ManageGroupTransactionsScreenState
         children: [
           Expanded(
             child: Text(
-              '${DateFormat('MMM d').format(date)} • ${txn['account_name']}',
+              '${DateFormat('MMM d').format(date)} • ${txn['account_name'] as String? ?? 'Unknown'}',
               style: const TextStyle(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
@@ -490,7 +498,7 @@ class _ManageGroupTransactionsScreenState
       ),
       controlAffinity: ListTileControlAffinity.leading,
       activeColor: AppTheme.primary,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
   }
 }

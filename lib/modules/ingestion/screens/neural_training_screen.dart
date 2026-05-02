@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:mobile_app/modules/home/models/unparsed_message.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/modules/home/models/unparsed_message.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/ingestion/widgets/forensic_annotation_form.dart';
+import 'package:provider/provider.dart';
 
 class NeuralTrainingScreen extends StatefulWidget {
   const NeuralTrainingScreen({super.key});
@@ -255,12 +255,12 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
     for (var m in _messages) {
       String key = m.sender ?? 'Unlabeled';
       if (m.subject != null && m.subject!.isNotEmpty) {
-        key += " (${m.subject})";
+        key += ' (${m.subject})';
       } else if (m.sender == null) {
         final fingerprint = m.content.length > 20
             ? '${m.content.substring(0, 20)}...'
             : m.content;
-        key = "Pattern: $fingerprint";
+        key = 'Pattern: $fingerprint';
       }
 
       groups.putIfAbsent(key, () => []).add(m);
@@ -403,7 +403,6 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
                 child: _buildMessageCard(
                   m,
                   isInsideGroup: true,
-                  isClipped: false,
                 ),
               ),
             ),
@@ -568,7 +567,7 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
-                  showModalBottomSheet(
+                  showModalBottomSheet<void>(
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
@@ -637,7 +636,7 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
             itemCount: _spamFilters.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final filter = _spamFilters[index];
+              final filter = _spamFilters[index] as Map<String, dynamic>;
               return ListTile(
                 tileColor: theme.colorScheme.surface,
                 shape: RoundedRectangleBorder(
@@ -649,14 +648,14 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
                   size: 20,
                 ),
                 title: Text(
-                  filter['sender'] ?? filter['subject'] ?? 'Auto-Filter',
+                  filter['sender'] as String? ?? filter['subject'] as String? ?? 'Auto-Filter',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
                 subtitle: Text(
-                  'Blocked ${filter['count_blocked'] ?? 0} times',
+                  'Blocked ${(filter['count_blocked'] ?? 0).toString()} times',
                   style: const TextStyle(fontSize: 11),
                 ),
                 trailing: IconButton(
@@ -675,7 +674,7 @@ class _NeuralTrainingScreenState extends State<NeuralTrainingScreen> {
                     if (!mounted) return;
                     if (!mounted) return;
                     final result = await dashboard.deleteSpamFilter(
-                      filter['id'],
+                      filter['id'].toString(),
                     );
                     if (!mounted) return;
                     result.fold(

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/security_service.dart';
+import 'package:provider/provider.dart';
 
 class BiometricGate extends StatefulWidget {
+  const BiometricGate({required this.child, super.key});
   final Widget child;
-  const BiometricGate({super.key, required this.child});
 
   @override
   State<BiometricGate> createState() => _BiometricGateState();
@@ -23,7 +23,7 @@ class _BiometricGateState extends State<BiometricGate> {
   Future<void> _checkAuth() async {
     final security = context.read<SecurityService>();
     debugPrint(
-      "BiometricGate: isBiometricEnabled=${security.isBiometricEnabled}, isAuthenticated=${security.isAuthenticated}",
+      'BiometricGate: isBiometricEnabled=${security.isBiometricEnabled}, isAuthenticated=${security.isAuthenticated}',
     );
     if (security.isBiometricEnabled && !security.isAuthenticated) {
       _authenticate();
@@ -32,11 +32,11 @@ class _BiometricGateState extends State<BiometricGate> {
 
   Future<void> _authenticate() async {
     if (_isAuthenticating) return;
-    debugPrint("BiometricGate: Requesting authentication...");
+    debugPrint('BiometricGate: Requesting authentication...');
     setState(() => _isAuthenticating = true);
 
     final success = await context.read<SecurityService>().authenticate();
-    debugPrint("BiometricGate: Authentication result: $success");
+    debugPrint('BiometricGate: Authentication result: $success');
 
     if (mounted) {
       if (!success) {

@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 
 class SearchablePicker extends StatelessWidget {
+
+  const SearchablePicker({
+    required this.title, required this.items, required this.labelMapper, required this.onSelected, super.key,
+    this.label,
+    this.placeholder,
+    this.iconMapper,
+    this.selectedValue,
+    this.isHighlighted = false,
+    this.highlightColor,
+  });
   final String title;
   final String? label;
   final String? placeholder;
@@ -8,23 +18,9 @@ class SearchablePicker extends StatelessWidget {
   final String Function(dynamic) labelMapper;
   final String? Function(dynamic)? iconMapper;
   final dynamic selectedValue;
-  final Function(dynamic) onSelected;
+  final void Function(dynamic) onSelected;
   final bool isHighlighted;
   final Color? highlightColor;
-
-  const SearchablePicker({
-    super.key,
-    required this.title,
-    this.label,
-    this.placeholder,
-    required this.items,
-    required this.labelMapper,
-    this.iconMapper,
-    required this.onSelected,
-    this.selectedValue,
-    this.isHighlighted = false,
-    this.highlightColor,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +31,7 @@ class SearchablePicker extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        showModalBottomSheet(
+        showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
@@ -99,20 +95,16 @@ class SearchablePicker extends StatelessWidget {
 }
 
 class SearchablePickerModal extends StatefulWidget {
-  final String title;
-  final List<dynamic> items;
-  final Function(dynamic) onSelected;
-  final String Function(dynamic) labelMapper;
-  final String? Function(dynamic)? iconMapper;
 
   const SearchablePickerModal({
-    super.key,
-    required this.title,
-    required this.items,
-    required this.onSelected,
-    required this.labelMapper,
+    required this.title, required this.items, required this.onSelected, required this.labelMapper, super.key,
     this.iconMapper,
   });
+  final String title;
+  final List<dynamic> items;
+  final void Function(dynamic) onSelected;
+  final String Function(dynamic) labelMapper;
+  final String? Function(dynamic)? iconMapper;
 
   @override
   State<SearchablePickerModal> createState() => _SearchablePickerModalState();

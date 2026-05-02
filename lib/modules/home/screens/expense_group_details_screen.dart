@@ -1,20 +1,21 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
+import 'package:mobile_app/modules/home/screens/manage_group_transactions_screen.dart';
+import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/goals_service.dart';
-import 'package:mobile_app/modules/home/screens/manage_group_transactions_screen.dart';
+import 'package:provider/provider.dart';
 
 class ExpenseGroupDetailsScreen extends StatefulWidget {
-  final dynamic group;
-  const ExpenseGroupDetailsScreen({super.key, required this.group});
+  const ExpenseGroupDetailsScreen({required this.group, super.key});
+  final Map<String, dynamic> group;
 
   @override
   State<ExpenseGroupDetailsScreen> createState() =>
@@ -22,7 +23,7 @@ class ExpenseGroupDetailsScreen extends StatefulWidget {
 }
 
 class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
-  late dynamic _group;
+  late Map<String, dynamic> _group;
   List<dynamic> _transactions = [];
   bool _isLoading = true;
   String? _error;
@@ -56,7 +57,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
       if (response.statusCode == 200) {
         if (mounted) {
           setState(() {
-            _group = jsonDecode(response.body);
+            _group = jsonDecode(response.body) as Map<String, dynamic>;
           });
         }
       }
@@ -89,11 +90,12 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> items = data['data'] ?? [];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = data['data'] as List<dynamic>? ?? [];
 
         final filtered = items.where((t) {
-          final gid = t['expense_group_id']?.toString();
+          final txn = t as Map<String, dynamic>;
+          final gid = txn['expense_group_id']?.toString();
           return gid == _group['id'].toString();
         }).toList();
 
@@ -121,25 +123,26 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final group = _group;
-    final budget = (group['budget'] ?? 0.0).toDouble();
+    final budget = (group['budget'] as num? ?? 0.0).toDouble();
 
     // Net spend: backend stores debits as negative, so negate to get positive spend
-    double spent = 0;
-    for (var txn in _transactions) {
+    double spentVal = 0;
+    for (var txnRaw in _transactions) {
+      final txn = txnRaw as Map<String, dynamic>;
       final amt = (txn['amount'] as num).toDouble();
-      spent -= amt;
+      spentVal -= amt;
     }
-    if (spent < 0) spent = 0;
+    if (spentVal < 0) spentVal = 0;
 
-    final progress = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
-    final isOverBudget = spent > budget && budget > 0;
+    final progress = budget > 0 ? (spentVal / budget).clamp(0.0, 1.0) : 0.0;
+    final isOverBudget = spentVal > budget && budget > 0;
     final currency = context.read<DashboardService>().currencySymbol;
     final maskingFactor = context.read<DashboardService>().maskingFactor;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(group['name'] ?? 'Group Details'),
+        title: Text(group['name'] as String? ?? 'Group Details'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -185,7 +188,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            group['icon'] ?? '📁',
+                            group['icon'] as String? ?? '📁',
                             style: const TextStyle(fontSize: 40),
                           ),
                         ),
@@ -195,16 +198,16 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                group['name'] ?? 'Unnamed Group',
+                                group['name'] as String? ?? 'Unnamed Group',
                                 style: const TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               if (group['description'] != null &&
-                                  group['description'].isNotEmpty)
+                                  (group['description'] as String).isNotEmpty)
                                 Text(
-                                  group['description'],
+                                  group['description'] as String,
                                   style: TextStyle(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
@@ -238,7 +241,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'])) : "Start"} — ${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'])) : "End"}',
+                              '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'] as String)) : "Start"} — ${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'] as String)) : "End"}',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
@@ -251,7 +254,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                     const SizedBox(height: 24),
                     _buildSummaryCard(
                       theme,
-                      spent,
+                      spentVal,
                       budget,
                       progress,
                       isOverBudget,
@@ -283,9 +286,9 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                         ),
                         TextButton.icon(
                           onPressed: () async {
-                            final result = await Navigator.push(
+                            final result = await Navigator.push<bool>(
                               context,
-                              MaterialPageRoute(
+                              MaterialPageRoute<bool>(
                                 builder: (_) => ManageGroupTransactionsScreen(
                                   group: _group,
                                 ),
@@ -357,7 +360,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
             else
               SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final txn = _transactions[index];
+                  final txn = _transactions[index] as Map<String, dynamic>;
                   return _buildTransactionTile(
                     context,
                     txn,
@@ -374,23 +377,23 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
   }
 
   void _showEditGroupDialog(BuildContext context) {
-    final nameController = TextEditingController(text: _group['name']);
+    final nameController = TextEditingController(text: _group['name'] as String?);
     final descriptionController = TextEditingController(
-      text: _group['description'],
+      text: _group['description'] as String?,
     );
     final budgetController = TextEditingController(
       text: _group['budget']?.toString() ?? '',
     );
-    final iconController = TextEditingController(text: _group['icon'] ?? '📁');
+    final iconController = TextEditingController(text: _group['icon'] as String? ?? '📁');
 
     DateTime startDate = _group['start_date'] != null
-        ? DateTime.parse(_group['start_date'])
+        ? DateTime.parse(_group['start_date'] as String)
         : DateTime.now();
     DateTime endDate = _group['end_date'] != null
-        ? DateTime.parse(_group['end_date'])
+        ? DateTime.parse(_group['end_date'] as String)
         : DateTime.now().add(const Duration(days: 30));
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -521,7 +524,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
   }
 
   void _showDeleteConfirm(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Group?'),
@@ -732,13 +735,13 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
 
   Widget _buildTransactionTile(
     BuildContext context,
-    dynamic txn,
+    Map<String, dynamic> txn,
     String currency,
     double maskingFactor,
   ) {
     final theme = Theme.of(context);
     final amount = (txn['amount'] as num).toDouble();
-    final date = DateTime.parse(txn['date']).toLocal();
+    final date = DateTime.parse(txn['date'] as String).toLocal();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -776,7 +779,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
           },
         ),
         title: Text(
-          txn['description'],
+          txn['description'] as String? ?? 'No Description',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),

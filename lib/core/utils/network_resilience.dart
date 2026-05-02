@@ -30,19 +30,15 @@ mixin NetworkResilience {
         if (response.statusCode >= 500) {
           if (retries < maxRetries) {
             retries++;
-            await Future.delayed(Duration(seconds: retries * 2));
+            await Future<void>.delayed(Duration(seconds: retries * 2));
             continue;
           }
-          return ServerFailure('Server error: ${response.statusCode}')
-              as Left<Failure, T>;
+          return Left(ServerFailure('Error: ${response.statusCode}'));
         }
-
-        return ServerFailure('Error: ${response.statusCode}')
-            as Left<Failure, T>;
       } on SocketException {
         if (retries < maxRetries) {
           retries++;
-          await Future.delayed(Duration(seconds: retries * 2));
+          await Future<void>.delayed(Duration(seconds: retries * 2));
           continue;
         }
         return const Left(ConnectionFailure());

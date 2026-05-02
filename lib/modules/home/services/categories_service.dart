@@ -8,6 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 // for RecentTransaction update
 
 class CategoriesService extends ChangeNotifier {
+
+  CategoriesService(this._config, this._auth) {
+    _loadCache();
+  }
   final AppConfig _config;
   final AuthService _auth;
 
@@ -17,17 +21,13 @@ class CategoriesService extends ChangeNotifier {
   List<TransactionCategory> get categories => _categories;
   bool get isLoading => _isLoading;
 
-  CategoriesService(this._config, this._auth) {
-    _loadCache();
-  }
-
   Future<void> _loadCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString('cached_categories');
       if (cachedJson != null) {
-        final List<dynamic> data = jsonDecode(cachedJson);
-        _categories = data.map((e) => TransactionCategory.fromJson(e)).toList();
+        final data = jsonDecode(cachedJson) as List<dynamic>;
+        _categories = data.map((e) => TransactionCategory.fromJson(e as Map<String, dynamic>)).toList();
         notifyListeners();
       }
     } catch (e) {
@@ -62,8 +62,8 @@ class CategoriesService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _categories = data.map((e) => TransactionCategory.fromJson(e)).toList();
+        final data = jsonDecode(response.body) as List<dynamic>;
+        _categories = data.map((e) => TransactionCategory.fromJson(e as Map<String, dynamic>)).toList();
         await _saveCache();
       }
     } catch (e) {

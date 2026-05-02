@@ -1,23 +1,26 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:open_filex/open_filex.dart';
-
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/vault/services/vault_service.dart';
-import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_app/core/errors/either.dart';
 import 'package:mobile_app/core/errors/failures.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:mobile_app/modules/home/models/transaction_category.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/modules/vault/services/vault_service.dart';
+import 'package:mobile_app/modules/vault/widgets/vault_dialogs.dart';
+import 'package:mobile_app/modules/vault/widgets/vault_items.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:provider/provider.dart';
 
 class VaultScreen extends StatefulWidget {
+  const VaultScreen({
+    this.initialFolderId,
+    this.initialSearch,
+    super.key,
+  });
+
   final String? initialFolderId;
   final String? initialSearch;
-  const VaultScreen({super.key, this.initialFolderId, this.initialSearch});
 
   @override
   State<VaultScreen> createState() => _VaultScreenState();
@@ -41,7 +44,7 @@ class _VaultScreenState extends State<VaultScreen> {
         });
         service.fetchDocuments(search: widget.initialSearch);
       } else if (widget.initialFolderId != null) {
-        service.navigateToFolder(widget.initialFolderId!, "Linked Folder");
+        service.navigateToFolder(widget.initialFolderId!, 'Linked Folder');
       } else {
         service.fetchDocuments();
       }
@@ -176,7 +179,7 @@ class _VaultScreenState extends State<VaultScreen> {
   }
 
   void _showAddMenu(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -378,8 +381,7 @@ class _VaultScreenState extends State<VaultScreen> {
     final service = context.read<VaultService>();
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
+        
       );
 
       if (!mounted) return;
@@ -568,8 +570,23 @@ class _VaultScreenState extends State<VaultScreen> {
                 childAspectRatio: 0.82,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, index) =>
-                    _buildDocCard(grouped[key]![index], service),
+                (context, index) {
+                  final doc = grouped[key]![index];
+                  return VaultGridItem(
+                    doc: doc,
+                    service: service,
+                    isSelected: service.selectedIds.contains(doc.id),
+                    onTap: () {
+                      if (service.isSelectionMode) {
+                        service.toggleSelection(doc.id);
+                      } else {
+                        _handleTap(doc, service);
+                      }
+                    },
+                    onLongPress: () => service.toggleSelection(doc.id),
+                    onMorePressed: () => _showActionSheet(doc, service),
+                  );
+                },
                 childCount: grouped[key]!.length,
               ),
             ),
@@ -596,403 +613,28 @@ class _VaultScreenState extends State<VaultScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildSectionHeader(key),
-            ...sectionDocs.map((doc) => _buildDocTile(doc, service)),
+            ...sectionDocs.map(
+              (doc) => VaultListItem(
+                doc: doc,
+                service: service,
+                isSelected: service.selectedIds.contains(doc.id),
+                onTap: () {
+                  if (service.isSelectionMode) {
+                    service.toggleSelection(doc.id);
+                  } else {
+                    _handleTap(doc, service);
+                  }
+                },
+                onLongPress: () => service.toggleSelection(doc.id),
+                onMorePressed: () => _showActionSheet(doc, service),
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildDocTile(VaultDocument doc, VaultService service) {
-    final isSelected = service.selectedIds.contains(doc.id);
-    final theme = Theme.of(context);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppTheme.primary.withValues(alpha: 0.08)
-            : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: isSelected
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-        border: Border.all(
-          color: isSelected
-              ? AppTheme.primary
-              : theme.dividerColor.withValues(alpha: 0.05),
-          width: isSelected ? 1.5 : 1,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        onTap: () {
-          if (service.isSelectionMode) {
-            service.toggleSelection(doc.id);
-          } else {
-            _handleTap(doc, service);
-          }
-        },
-        onLongPress: () => service.toggleSelection(doc.id),
-        leading: _buildFileIcon(doc, service, size: 44),
-        title: Text(
-          doc.filename,
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 13,
-            letterSpacing: -0.2,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Row(
-          children: [
-            Text(
-              doc.isFolder
-                  ? 'Folder'
-                  : (doc.linkedTransaction != null
-                        ? doc.linkedTransaction!.description
-                        : doc.fileType),
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.6,
-                ),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (!doc.isFolder) ...[
-              const Text(' • ', style: TextStyle(color: Colors.grey)),
-              Text(
-                doc.formattedSize,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (doc.linkedTransaction != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '₹${doc.linkedTransaction!.amount.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    color: AppTheme.primary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            if (service.isSelectionMode)
-              Checkbox(
-                value: isSelected,
-                onChanged: (_) => service.toggleSelection(doc.id),
-                activeColor: AppTheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              )
-            else
-              IconButton(
-                icon: const Icon(
-                  Icons.more_vert,
-                  size: 20,
-                  color: Colors.black38,
-                ),
-                onPressed: () => _showActionSheet(doc, service),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDocCard(VaultDocument doc, VaultService service) {
-    final theme = Theme.of(context);
-    final isSelected = service.selectedIds.contains(doc.id);
-
-    return Card(
-      elevation: isSelected ? 12 : 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected
-              ? AppTheme.primary
-              : theme.dividerColor.withValues(alpha: 0.1),
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: () {
-          if (service.isSelectionMode) {
-            service.toggleSelection(doc.id);
-          } else {
-            _handleTap(doc, service);
-          }
-        },
-        onLongPress: () => service.toggleSelection(doc.id),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-                    colors: [
-                      AppTheme.primary.withValues(alpha: 0.1),
-                      AppTheme.primary.withValues(alpha: 0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : LinearGradient(
-                    colors: [
-                      theme.colorScheme.surface,
-                      theme.colorScheme.surface.withValues(alpha: 0.8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildFileIcon(doc, service, size: 64),
-                    if (service.isSelectionMode)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: Checkbox(
-                            value: isSelected,
-                            onChanged: (_) => service.toggleSelection(doc.id),
-                            activeColor: AppTheme.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (!service.isSelectionMode)
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.more_vert,
-                            size: 20,
-                            color: Colors.black45,
-                          ),
-                          onPressed: () => _showActionSheet(doc, service),
-                        ),
-                      ),
-                    if (doc.transactionId != null)
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.receipt_long_outlined,
-                                size: 10,
-                                color: Colors.white,
-                              ),
-                              if (doc.linkedTransaction != null) ...[
-                                const SizedBox(width: 4),
-                                Text(
-                                  '₹${doc.linkedTransaction!.amount.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(12.0),
-                color: theme.colorScheme.surface.withValues(
-                  alpha: isSelected ? 0.0 : 0.8,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      doc.filename,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          doc.isFolder
-                              ? 'Folder'
-                              : (doc.linkedTransaction != null
-                                    ? doc.linkedTransaction!.description
-                                    : doc.fileType),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.7),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          DateFormat('dd MMM').format(doc.createdAt),
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.5),
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFileIcon(
-    VaultDocument doc,
-    VaultService service, {
-    required double size,
-  }) {
-    Widget content;
-
-    if (doc.isFolder) {
-      content = Icon(Icons.folder, size: size, color: Colors.amber);
-    } else if (doc.thumbnailPath != null) {
-      content = ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          service.getThumbnailUrl(doc.id),
-          headers: service.authHeaders,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              _buildPlaceholder(doc, size),
-        ),
-      );
-    } else {
-      content = _buildPlaceholder(doc, size);
-    }
-
-    return SizedBox(width: size, height: size, child: content);
-  }
-
-  Widget _buildPlaceholder(VaultDocument doc, double size) {
-    IconData icon;
-    Color color;
-
-    final type = doc.fileType.toUpperCase();
-    final mime = doc.mimeType?.toLowerCase() ?? '';
-
-    if (mime.contains('pdf') || doc.filename.toLowerCase().endsWith('.pdf')) {
-      icon = Icons.picture_as_pdf;
-      color = Colors.redAccent;
-    } else if (mime.startsWith('image/')) {
-      icon = Icons.image_outlined;
-      color = Colors.blueAccent;
-    } else {
-      switch (type) {
-        case 'BILL':
-          icon = Icons.receipt_long_outlined;
-          color = Colors.teal;
-          break;
-        case 'INVOICE':
-          icon = Icons.receipt_long;
-          color = Colors.blue;
-          break;
-        case 'POLICY':
-          icon = Icons.verified_user_outlined;
-          color = Colors.green;
-          break;
-        case 'IDENTITY':
-          icon = Icons.badge_outlined;
-          color = Colors.indigo;
-          break;
-        case 'TAX':
-          icon = Icons.account_balance_outlined;
-          color = Colors.orange;
-          break;
-        default:
-          icon = Icons.insert_drive_file_outlined;
-          color = Colors.grey;
-      }
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, size: size * 0.6, color: color.withValues(alpha: 0.8)),
-    );
-  }
 
   void _handleTap(VaultDocument doc, VaultService service) {
     if (doc.isFolder) {
@@ -1004,7 +646,7 @@ class _VaultScreenState extends State<VaultScreen> {
 
   void _showActionSheet(VaultDocument doc, VaultService service) {
     final messenger = ScaffoldMessenger.of(context);
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -1029,7 +671,11 @@ class _VaultScreenState extends State<VaultScreen> {
                 shrinkWrap: true,
                 children: [
                   ListTile(
-                    leading: _buildFileIcon(latestDoc, latestService, size: 32),
+                    leading: VaultFileIcon(
+                      doc: latestDoc,
+                      service: latestService,
+                      size: 32,
+                    ),
                     title: Text(
                       latestDoc.filename,
                       style: const TextStyle(
@@ -1045,7 +691,7 @@ class _VaultScreenState extends State<VaultScreen> {
                   ),
                   if (latestDoc.linkedTransaction != null) ...[
                     const Divider(indent: 16, endIndent: 16),
-                    _buildTransactionInfo(latestDoc.linkedTransaction!),
+                    LinkedTransactionInfo(tx: latestDoc.linkedTransaction!),
                   ],
                   const Divider(),
                   if (!latestDoc.isFolder) ...[
@@ -1269,7 +915,7 @@ class _VaultScreenState extends State<VaultScreen> {
 
   void _showMovePicker(BuildContext context, List<String> docIds) {
     final service = context.read<VaultService>();
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1323,9 +969,9 @@ class _VaultScreenState extends State<VaultScreen> {
                   ),
                   const Divider(),
                   ...service.documents
-                      .where((d) => d.isFolder && !docIds.contains(d.id))
+                      .where((VaultDocument d) => d.isFolder && !docIds.contains(d.id))
                       .map(
-                        (folder) => ListTile(
+                        (VaultDocument folder) => ListTile(
                           leading: const Icon(
                             Icons.folder_outlined,
                             color: Colors.amber,
@@ -1357,203 +1003,27 @@ class _VaultScreenState extends State<VaultScreen> {
       ),
     );
   }
-
   void _showTransactionPicker(
     BuildContext context,
     String docId,
     VaultService service,
   ) {
-    showModalBottomSheet(
+    showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        String query = "";
-        return DraggableScrollableSheet(
-          initialChildSize: 0.8,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, scrollController) => Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(25),
-              ),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Link Transaction',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: StatefulBuilder(
-                    builder: (context, setPickerState) {
-                      return Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: TextField(
-                              decoration: InputDecoration(
-                                hintText: 'Search merchant or amount...',
-                                prefixIcon: const Icon(Icons.search),
-                                filled: true,
-                                fillColor: Colors.grey.withValues(alpha: 0.05),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onChanged: (val) {
-                                setPickerState(() => query = val);
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child:
-                                FutureBuilder<Either<Failure, List<dynamic>>>(
-                                  key: ValueKey(
-                                    query,
-                                  ), // Force rebuild on query change
-                                  future: service.searchTransactions(
-                                    query: query,
-                                  ),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const Center(
-                                        child: CircularProgressIndicator(),
-                                      );
-                                    }
-                                    return snapshot.data?.fold(
-                                          (failure) => Center(
-                                            child: Text(failure.message),
-                                          ),
-                                          (txns) {
-                                            if (txns.isEmpty) {
-                                              return const Center(
-                                                child: Text(
-                                                  'No transactions found',
-                                                ),
-                                              );
-                                            }
-                                            return ListView.builder(
-                                              controller: scrollController,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ),
-                                              itemCount: txns.length,
-                                              itemBuilder: (context, index) {
-                                                final txn = txns[index];
-                                                return ListTile(
-                                                  leading: CircleAvatar(
-                                                    backgroundColor: AppTheme
-                                                        .primary
-                                                        .withValues(alpha: 0.1),
-                                                    child: Text(
-                                                      txn['category'] != null &&
-                                                              txn['category']
-                                                                  .toString()
-                                                                  .isNotEmpty
-                                                          ? txn['category']
-                                                                .toString()[0]
-                                                                .toUpperCase()
-                                                          : 'T',
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: AppTheme.primary,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  title: Text(
-                                                    txn['description'] ??
-                                                        'No Description',
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                  subtitle: Text(
-                                                    txn['date'] ?? '',
-                                                    style: const TextStyle(
-                                                      fontSize: 10,
-                                                    ),
-                                                  ),
-                                                  trailing: Text(
-                                                    '₹${txn['amount']}',
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      color: AppTheme.primary,
-                                                    ),
-                                                  ),
-                                                  onTap: () async {
-                                                    final result = await service
-                                                        .linkTransaction(
-                                                          docId,
-                                                          txn['id'],
-                                                        );
-                                                    if (context.mounted) {
-                                                      Navigator.pop(context);
-                                                      _handleActionResult(
-                                                        result,
-                                                        'Linked successfully',
-                                                      );
-                                                    }
-                                                  },
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ) ??
-                                        const Center(
-                                          child: Text(
-                                            'Error loading transactions',
-                                          ),
-                                        );
-                                  },
-                                ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+      builder: (context) => TransactionPickerSheet(
+        docId: docId,
+        service: service,
+      ),
+    ).then((txnId) async {
+      if (txnId != null) {
+        final result = await service.linkTransaction(docId, txnId);
+        if (context.mounted) {
+          _handleActionResult(result, 'Linked successfully');
+        }
+      }
+    });
   }
 
   void _handleActionResult(Either<Failure, Unit> result, String successMsg) {
@@ -1570,126 +1040,6 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  Widget _buildTransactionInfo(LinkedTransaction tx) {
-    final theme = Theme.of(context);
-    final dashboard = context.read<DashboardService>();
-    final amount = tx.amount.toDouble();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                Icon(Icons.link, size: 12, color: theme.primaryColor),
-                const SizedBox(width: 6),
-                Text(
-                  'LINKED TRANSACTION',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    color: theme.primaryColor,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 0,
-            ),
-            leading: Consumer<CategoriesService>(
-              builder: (context, catService, _) {
-                final catNameRaw = tx.category ?? 'Other';
-                final catName = catNameRaw.contains(' › ')
-                    ? catNameRaw.split(' › ').last
-                    : catNameRaw;
-                TransactionCategory? matched;
-
-                for (var parent in catService.categories) {
-                  if (parent.name.toLowerCase() == catName.toLowerCase()) {
-                    matched = parent;
-                    break;
-                  }
-                  for (var sub in parent.subcategories) {
-                    if (sub.name.toLowerCase() == catName.toLowerCase()) {
-                      matched = sub;
-                      break;
-                    }
-                  }
-                  if (matched != null) break;
-                }
-
-                return Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    matched?.icon ??
-                        (catName.isNotEmpty ? catName[0].toUpperCase() : '?'),
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: theme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                );
-              },
-            ),
-            title: Text(
-              tx.description,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-            ),
-            subtitle: Text(
-              '${DateFormat('d MMM, h:mm a').format(tx.date)} • ${tx.accountName ?? 'Account'}',
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.6,
-                ),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            trailing: Text(
-              NumberFormat.simpleCurrency(
-                name: 'INR',
-                decimalDigits: 0,
-              ).format(amount / dashboard.maskingFactor),
-              style: TextStyle(
-                color: amount < 0 ? AppTheme.danger : AppTheme.success,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<Map<String, String>?> _showUploadMetadataDialog(
     BuildContext context,
@@ -1842,124 +1192,22 @@ class _VaultScreenState extends State<VaultScreen> {
   }
 
   void _showDetailsDialog(BuildContext context, VaultDocument doc) {
-    showModalBottomSheet(
+    final service = context.read<VaultService>();
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
         maxChildSize: 0.9,
         minChildSize: 0.3,
         expand: false,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: AppTheme.primary),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Document Details',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _buildDetailRow('Filename', doc.filename),
-                    _buildDetailRow('Type', doc.fileType),
-                    if (!doc.isFolder)
-                      _buildDetailRow('Size', doc.formattedSize),
-                    if (!doc.isFolder)
-                      _buildDetailRow('MIME Type', doc.mimeType ?? 'Unknown'),
-                    _buildDetailRow(
-                      'Created',
-                      DateFormat('dd MMM yyyy, h:mm a').format(doc.createdAt),
-                    ),
-                    if (doc.description != null && doc.description!.isNotEmpty)
-                      _buildDetailRow('Description', doc.description!),
-                    if (doc.transactionId != null) ...[
-                      const Divider(height: 32),
-                      const Text(
-                        'LINKED TRANSACTION',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.grey,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (doc.linkedTransaction != null)
-                        _buildTransactionInfo(doc.linkedTransaction!)
-                      else
-                        const Text(
-                          'Transaction ID: Linked (Refresh to see details)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
+        builder: (context, scrollController) => VaultDocumentDetailsSheet(
+          doc: doc,
+          service: service,
+          scrollController: scrollController,
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
 }

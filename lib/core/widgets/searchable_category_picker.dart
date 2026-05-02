@@ -2,18 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
 
 class SearchableCategoryPicker extends StatefulWidget {
-  final List<TransactionCategory> categories;
-  final String selected;
-  final Function(String) onSelected;
-  final ScrollController? scrollController;
 
   const SearchableCategoryPicker({
-    super.key,
-    required this.categories,
-    required this.selected,
-    required this.onSelected,
+    required this.categories, required this.selected, required this.onSelected, super.key,
     this.scrollController,
   });
+  final List<TransactionCategory> categories;
+  final String selected;
+  final void Function(String) onSelected;
+  final ScrollController? scrollController;
 
   @override
   State<SearchableCategoryPicker> createState() =>
@@ -21,7 +18,7 @@ class SearchableCategoryPicker extends StatefulWidget {
 }
 
 class _SearchableCategoryPickerState extends State<SearchableCategoryPicker> {
-  String _searchQuery = "";
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +132,7 @@ class _SearchableCategoryPickerState extends State<SearchableCategoryPicker> {
                       if (hasSubcategories && _searchQuery.isEmpty)
                         _buildParentHeader(theme, parent),
 
-                      if (parentMatches) _buildCatTile(parent, isSub: false),
+                      if (parentMatches) _buildCatTile(parent),
 
                       ...matchingSubs.map(
                         (sub) => _buildCatTile(

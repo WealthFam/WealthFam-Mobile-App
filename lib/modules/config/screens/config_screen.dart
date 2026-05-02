@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
+import 'package:provider/provider.dart';
 
 class ConfigScreen extends StatefulWidget {
-  final VoidCallback? onSaved;
 
   const ConfigScreen({super.key, this.onSaved});
+  final VoidCallback? onSaved;
 
   @override
   State<ConfigScreen> createState() => _ConfigScreenState();
@@ -51,7 +51,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
       await authService.setDeviceId(_deviceIdCtrl.text.trim());
     }
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (mounted) setState(() => _isLoading = false);
 
@@ -135,12 +135,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
               TextFormField(
                 controller: _deviceIdCtrl,
                 style: TextStyle(color: theme.colorScheme.onSurface),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Device ID',
                   hintText: 'Unique Device Identifier',
-                  prefixIcon: const Icon(Icons.perm_device_information),
+                  prefixIcon: Icon(Icons.perm_device_information),
                   helperText: 'Changing this will require re-approval.',
-                  helperStyle: const TextStyle(color: AppTheme.warning),
+                  helperStyle: TextStyle(color: AppTheme.warning),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Required';

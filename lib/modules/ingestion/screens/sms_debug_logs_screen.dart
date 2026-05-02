@@ -1,7 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
+import 'package:provider/provider.dart';
 
 class SmsDebugLogsScreen extends StatelessWidget {
   const SmsDebugLogsScreen({super.key});

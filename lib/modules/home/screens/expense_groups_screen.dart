@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/home/services/goals_service.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/modules/home/screens/expense_group_details_screen.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/modules/home/services/goals_service.dart';
+import 'package:provider/provider.dart';
 
 class ExpenseGroupsScreen extends StatefulWidget {
   const ExpenseGroupsScreen({super.key});
@@ -75,7 +75,7 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
     DateTime startDate = DateTime.now();
     DateTime endDate = DateTime.now().add(const Duration(days: 30));
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -253,12 +253,12 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       itemCount: groups.length,
       itemBuilder: (context, index) {
-        final group = groups[index];
-        final budget = (group['budget'] ?? 0.0).toDouble();
-        final spent = (group['total_spend'] ?? 0.0).toDouble();
+        final group = groups[index] as Map<String, dynamic>;
+        final budget = (group['budget'] as num? ?? 0.0).toDouble();
+        final spent = (group['total_spend'] as num? ?? 0.0).toDouble();
         final progress = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
         final isOverBudget = spent > budget && budget > 0;
-        final isActive = group['is_active'] ?? true;
+        final isActive = group['is_active'] as bool? ?? true;
 
         return Card(
           elevation: 0,
@@ -269,9 +269,9 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
           ),
           child: InkWell(
             onTap: () {
-              Navigator.push(
+              Navigator.push<void>(
                 context,
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => ExpenseGroupDetailsScreen(group: group),
                 ),
               );
@@ -294,9 +294,9 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child:
-                              group['icon'] != null && group['icon'].isNotEmpty
+                              group['icon'] != null && (group['icon'] as String).isNotEmpty
                               ? Text(
-                                  group['icon'],
+                                  group['icon'] as String,
                                   style: const TextStyle(fontSize: 24),
                                 )
                               : const Icon(
@@ -314,7 +314,7 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      group['name'] ?? 'Unnamed Group',
+                                      group['name'] as String? ?? 'Unnamed Group',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
@@ -333,9 +333,9 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                                 ],
                               ),
                               if (group['description'] != null &&
-                                  group['description'].isNotEmpty)
+                                  (group['description'] as String).isNotEmpty)
                                 Text(
-                                  group['description'],
+                                  group['description'] as String,
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 13,
@@ -357,9 +357,9 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'])) : "..."}'
+                                        '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'] as String)) : "..."}'
                                         ' - '
-                                        '${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'])) : "..."}',
+                                        '${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'] as String)) : "..."}',
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey[600],
@@ -446,14 +446,14 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
 
   void _showDeleteConfirm(
     BuildContext context,
-    dynamic group,
+    Map<String, dynamic> group,
     GoalsService service,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Group?'),
-        content: Text('Are you sure you want to delete "${group['name']}"?'),
+        content: Text('Are you sure you want to delete "${group['name'] as String? ?? 'Unnamed'}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

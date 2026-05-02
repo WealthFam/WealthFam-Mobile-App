@@ -6,6 +6,10 @@ import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GoalsService extends ChangeNotifier {
+
+  GoalsService(this._config, this._auth) {
+    _loadCache();
+  }
   final AppConfig _config;
   final AuthService _auth;
 
@@ -20,10 +24,6 @@ class GoalsService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  GoalsService(this._config, this._auth) {
-    _loadCache();
-  }
-
   Future<void> _loadCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -31,10 +31,10 @@ class GoalsService extends ChangeNotifier {
       final cachedGroups = prefs.getString('cached_expense_groups');
 
       if (cachedGoals != null) {
-        _goals = jsonDecode(cachedGoals);
+        _goals = jsonDecode(cachedGoals) as List<dynamic>;
       }
       if (cachedGroups != null) {
-        _expenseGroups = jsonDecode(cachedGroups);
+        _expenseGroups = jsonDecode(cachedGroups) as List<dynamic>;
       }
       notifyListeners();
     } catch (e) {
@@ -99,7 +99,7 @@ class GoalsService extends ChangeNotifier {
       );
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final index = _goals.indexWhere((g) => g['id'].toString() == id);
+        final index = _goals.indexWhere((g) => (g as Map<String, dynamic>)['id'].toString() == id);
         if (index != -1) {
           _goals[index] = decoded;
         } else {

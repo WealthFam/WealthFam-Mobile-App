@@ -1,29 +1,32 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
-import 'package:intl/intl.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:mobile_app/modules/auth/services/auth_service.dart';
-import 'package:mobile_app/modules/home/models/dashboard_data.dart';
-import 'package:mobile_app/modules/home/screens/analytics_screen.dart';
-import 'package:mobile_app/modules/home/screens/mutual_funds_screen.dart';
-import 'package:mobile_app/modules/ingestion/screens/transaction_review_screen.dart';
-import 'package:mobile_app/modules/ingestion/screens/neural_training_screen.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:mobile_app/modules/home/models/transaction_category.dart';
-import 'package:mobile_app/core/services/socket_service.dart';
-import 'package:mobile_app/core/config/app_config.dart';
-import 'package:mobile_app/modules/config/screens/sync_settings_screen.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
 import 'package:decimal/decimal.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:mobile_app/core/config/app_config.dart';
+import 'package:mobile_app/core/services/notification_service.dart';
+import 'package:mobile_app/core/services/socket_service.dart';
+import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
+import 'package:mobile_app/modules/auth/services/auth_service.dart';
+import 'package:mobile_app/modules/config/screens/sync_settings_screen.dart';
+import 'package:mobile_app/modules/home/models/dashboard_data.dart';
+import 'package:mobile_app/modules/home/models/transaction_category.dart';
+import 'package:mobile_app/modules/home/screens/activity_center_screen.dart';
 import 'package:mobile_app/modules/home/screens/add_transaction_screen.dart';
+import 'package:mobile_app/modules/home/screens/analytics_screen.dart';
 import 'package:mobile_app/modules/home/screens/calendar_heatmap_widget.dart';
+import 'package:mobile_app/modules/home/screens/mutual_funds_screen.dart';
+import 'package:mobile_app/modules/home/screens/transaction_detail_screen.dart';
+import 'package:mobile_app/modules/home/services/categories_service.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/modules/ingestion/screens/neural_training_screen.dart';
+import 'package:mobile_app/modules/ingestion/screens/transaction_review_screen.dart';
+import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
+import 'package:provider/provider.dart';
 
 class DashboardScreen extends StatefulWidget {
-  final VoidCallback? onMenuPressed;
   const DashboardScreen({super.key, this.onMenuPressed});
+  final VoidCallback? onMenuPressed;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -63,7 +66,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           slivers: [
             SliverAppBar(
               floating: true,
-              pinned: false,
               leading: widget.onMenuPressed != null
                   ? IconButton(
                       icon: const Icon(Icons.menu),
@@ -121,8 +123,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              bottom: null,
               actions: [
+                Consumer<NotificationService>(
+                  builder: (context, notifications, _) => Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_outlined),
+                        onPressed: () {
+                          Navigator.push<void>(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ActivityCenterScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      if (notifications.history.isNotEmpty)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.danger,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 8,
+                              minHeight: 8,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 Consumer<SocketService>(
                   builder: (context, socket, _) => Tooltip(
                     message: socket.isConnected
@@ -237,9 +271,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.push(
+                          Navigator.push<void>(
                             context,
-                            MaterialPageRoute(
+                            MaterialPageRoute<void>(
                               builder: (_) => const AnalyticsScreen(),
                             ),
                           );
@@ -264,9 +298,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
+          Navigator.push<bool>(
             context,
-            MaterialPageRoute(builder: (_) => AddTransactionScreen()),
+            MaterialPageRoute<bool>(builder: (_) => const AddTransactionScreen()),
           ).then((val) {
             if (val == true) dashboard.refresh();
           });
@@ -280,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSummarySection(
     BuildContext context,
     DashboardSummary summary,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     // Trend for Today vs Yesterday
     final todayDiff = summary.todayTotal - summary.yesterdayTotal;
@@ -306,9 +340,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
               Icons.calendar_month,
               onTap: () {
-                Navigator.push(
+                Navigator.push<void>(
                   context,
-                  MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+                  MaterialPageRoute<void>(builder: (_) => const AnalyticsScreen()),
                 );
               },
               trend: Column(
@@ -363,9 +397,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               [const Color(0xFF10B981), const Color(0xFF059669)],
               Icons.today,
               onTap: () {
-                Navigator.push(
+                Navigator.push<void>(
                   context,
-                  MaterialPageRoute(
+                  MaterialPageRoute<void>(
                     builder: (_) => const AnalyticsScreen(showTodayOnly: true),
                   ),
                 );
@@ -479,7 +513,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildInvestmentsEntry(
     BuildContext context,
     InvestmentSummary? summary,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     if (context.read<AuthService>().userRole == 'CHILD') {
       return const SizedBox.shrink();
@@ -489,9 +523,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: GestureDetector(
         onTap: () {
-          Navigator.push(
+          Navigator.push<void>(
             context,
-            MaterialPageRoute(builder: (_) => const MutualFundsScreen()),
+            MaterialPageRoute<void>(builder: (_) => const MutualFundsScreen()),
           );
         },
         child: Container(
@@ -535,9 +569,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: summary.profitLoss >= Decimal.zero
                               ? Colors.greenAccent
                               : Colors.redAccent,
-                          barWidth: 2,
                           dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(show: false),
+                          belowBarData: BarAreaData(),
                         ),
                       ],
                     ),
@@ -562,7 +595,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Mutual Funds Overview",
+                      'Mutual Funds Overview',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -597,7 +630,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           if (summary.totalInvested > Decimal.zero) ...[
                             const SizedBox(width: 4),
                             Text(
-                              "(${((summary.profitLoss.toDouble() / summary.totalInvested.toDouble()) * 100).toStringAsFixed(1)}%)",
+                              '(${((summary.profitLoss.toDouble() / summary.totalInvested.toDouble()) * 100).toStringAsFixed(1)}%)',
                               style: TextStyle(
                                 color: summary.profitLoss >= Decimal.zero
                                     ? Colors.greenAccent.withValues(alpha: 0.8)
@@ -635,7 +668,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               summary.xirr! > Decimal.zero) ...[
                             const SizedBox(width: 8),
                             Text(
-                              "XIRR: ${summary.xirr!.toDouble().toStringAsFixed(1)}%",
+                              'XIRR: ${summary.xirr!.toDouble().toStringAsFixed(1)}%',
                               style: const TextStyle(
                                 color: Colors.white54,
                                 fontSize: 10,
@@ -646,7 +679,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ] else
                       const Text(
-                        "Track your portfolio performance",
+                        'Track your portfolio performance',
                         style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                   ],
@@ -667,7 +700,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildBudgetSection(
     BuildContext context,
     BudgetSummary budget,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     final theme = Theme.of(context);
     final isOver = budget.percentage > Decimal.parse('100');
@@ -809,7 +842,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildTransactionItem(
     BuildContext context,
     RecentTransaction txn,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     final theme = Theme.of(context);
     final isNegative = txn.amount < Decimal.zero;
@@ -823,9 +856,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: ListTile(
         onTap: () {
-          Navigator.push(
+          Navigator.push<void>(
             context,
-            MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+            MaterialPageRoute<void>(
+              builder: (_) => TransactionDetailScreen(transaction: txn),
+            ),
           );
         },
         onLongPress: () {
@@ -962,9 +997,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               subtitle: 'Verify low-confidence items',
               icon: Icons.fact_check_outlined,
               color: AppTheme.warning,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => const TransactionReviewScreen(),
                 ),
               ),
@@ -977,9 +1012,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               subtitle: 'Teach the system new patterns',
               icon: Icons.auto_awesome,
               color: AppTheme.primary,
-              onTap: () => Navigator.push(
+              onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute(builder: (_) => const NeuralTrainingScreen()),
+                MaterialPageRoute<void>(builder: (_) => const NeuralTrainingScreen()),
               ),
             ),
         ],
@@ -1247,7 +1282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1312,12 +1347,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 itemCount: items.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 16),
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final item = items[index];
                   final date = DateTime.fromMillisecondsSinceEpoch(
-                    item['date'] ?? 0,
+                    (item['date'] as num?)?.toInt() ?? 0,
                   );
                   final timeStr = DateFormat('dd MMM, HH:mm').format(date);
 
@@ -1335,7 +1369,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              item['address'] ?? 'Unknown',
+                              item['address'] as String? ?? 'Unknown',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1351,7 +1385,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          item['body'] ?? '',
+                          item['body'] as String? ?? '',
                           style: const TextStyle(fontSize: 13),
                         ),
                         if (item['latitude'] != null) ...[
@@ -1365,7 +1399,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${item['latitude'].toStringAsFixed(6)}, ${item['longitude'].toStringAsFixed(6)}',
+                                '${(item['latitude'] as num).toStringAsFixed(6)}, ${(item['longitude'] as num).toStringAsFixed(6)}',
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: theme.primaryColor,
@@ -1445,7 +1479,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onPressed: () {
                 Navigator.of(
                   context,
-                ).push(MaterialPageRoute(builder: (_) => SyncSettingsScreen()));
+                ).push(MaterialPageRoute<void>(builder: (_) => const SyncSettingsScreen()));
               },
               icon: const Icon(Icons.settings),
               label: const Text('Update Server URL'),

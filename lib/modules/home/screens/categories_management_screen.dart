@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:mobile_app/modules/home/models/transaction_category.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/modules/home/models/transaction_category.dart';
+import 'package:mobile_app/modules/home/services/categories_service.dart';
+import 'package:provider/provider.dart';
 
 class CategoriesManagementScreen extends StatefulWidget {
   const CategoriesManagementScreen({super.key});
@@ -27,7 +27,7 @@ class _CategoriesManagementScreenState
     final iconCtrl = TextEditingController(text: category?.icon ?? '🏷️');
     String type = category?.type ?? 'expense';
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -252,7 +252,7 @@ class _CategoriesManagementScreenState
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCategoryForm(),
         icon: const Icon(Icons.add),
-        label: const Text("New Category"),
+        label: const Text('New Category'),
       ),
     );
   }

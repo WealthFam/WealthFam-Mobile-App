@@ -36,7 +36,6 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: primary,
         secondary: primaryDark,
-        surface: lightSurface,
         onSurface: lightTextMain,
         onSurfaceVariant: lightTextMuted,
         outline: lightBorder,

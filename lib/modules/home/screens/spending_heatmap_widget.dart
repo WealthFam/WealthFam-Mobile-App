@@ -1,11 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_heatmap/flutter_map_heatmap.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:provider/provider.dart';
 
 class SpendingHeatmapWidget extends StatefulWidget {
   const SpendingHeatmapWidget({super.key});
@@ -73,7 +74,8 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
           });
         },
         (data) {
-          final weighted = data.map((p) {
+          final weighted = data.map((pRaw) {
+            final p = pRaw as Map<String, dynamic>;
             final lat = (p['latitude'] as num).toDouble();
             final lng = (p['longitude'] as num).toDouble();
             final amt = (p['amount'] as num).toDouble();
@@ -102,7 +104,7 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
       if (!context.mounted) return;
 
       if (_heatmapData.length == 1) {
-        final p = _heatmapData[0];
+        final p = _heatmapData[0] as Map<String, dynamic>;
         _mapController.move(
           LatLng(
             (p['latitude'] as num).toDouble(),
@@ -113,10 +115,13 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
       } else {
         final points = _heatmapData
             .map(
-              (p) => LatLng(
-                (p['latitude'] as num).toDouble(),
-                (p['longitude'] as num).toDouble(),
-              ),
+              (pRaw) {
+                final p = pRaw as Map<String, dynamic>;
+                return LatLng(
+                  (p['latitude'] as num).toDouble(),
+                  (p['longitude'] as num).toDouble(),
+                );
+              },
             )
             .toList();
 
@@ -146,10 +151,10 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
           // Map layer
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(
-              initialCenter: const LatLng(20.5937, 78.9629),
+            options: const MapOptions(
+              initialCenter: LatLng(20.5937, 78.9629),
               initialZoom: 5,
-              backgroundColor: const Color(0xFF1a1a2e),
+              backgroundColor: Color(0xFF1a1a2e),
             ),
             children: [
               TileLayer(
@@ -167,7 +172,6 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
                   ),
                   heatMapOptions: HeatMapOptions(
                     gradient: _heatGradient,
-                    minOpacity: 0.3,
                     layerOpacity: 0.8,
                     radius: 25,
                     blurFactor: 12,
@@ -176,12 +180,13 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
                 ),
               if (_heatmapData.isNotEmpty)
                 MarkerLayer(
-                  markers: _heatmapData.map((p) {
+                  markers: _heatmapData.map((pRaw) {
+                    final p = pRaw as Map<String, dynamic>;
                     final lat = (p['latitude'] as num).toDouble();
                     final lng = (p['longitude'] as num).toDouble();
                     final amount = (p['amount'] as num).toDouble();
-                    final category = p['category'] ?? 'Expense';
-                    final desc = p['description'] ?? '';
+                    final category = (p['category'] ?? 'Expense') as String;
+                    final desc = (p['description'] ?? '') as String;
 
                     return Marker(
                       point: LatLng(lat, lng),
@@ -334,7 +339,7 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
     String currency,
   ) {
     final maskingFactor = context.read<DashboardService>().maskingFactor;
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(

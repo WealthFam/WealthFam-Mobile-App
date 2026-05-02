@@ -1,8 +1,9 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/config/screens/config_screen.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _openConfig() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ConfigScreen()),
+      MaterialPageRoute<void>(builder: (_) => const ConfigScreen()),
     );
   }
 

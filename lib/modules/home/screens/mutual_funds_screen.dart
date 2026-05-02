@@ -1,14 +1,15 @@
+import 'dart:math' as math;
+
+import 'package:decimal/decimal.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/home/services/funds_service.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:mobile_app/modules/home/models/fund_models.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
-import 'package:decimal/decimal.dart';
-import 'dart:math' as math;
+import 'package:mobile_app/modules/home/models/fund_models.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/modules/home/services/funds_service.dart';
+import 'package:provider/provider.dart';
 
 class MutualFundsScreen extends StatefulWidget {
   const MutualFundsScreen({super.key});
@@ -89,10 +90,13 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
               itemBuilder: (context) => <PopupMenuEntry<String>>[
                 const PopupMenuItem(value: 'all', child: Text('All Family')),
                 ...dashboardService.members.map(
-                  (m) => PopupMenuItem(
-                    value: m['id'].toString(),
-                    child: Text(m['name']),
-                  ),
+                  (mRaw) {
+                    final m = mRaw as Map<String, dynamic>;
+                    return PopupMenuItem(
+                      value: m['id'].toString(),
+                      child: Text(m['name'] as String? ?? 'Unknown'),
+                    );
+                  },
                 ),
               ],
             ),
@@ -130,7 +134,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
   Widget _buildContent(
     BuildContext context,
     PortfolioSummary portfolio,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -140,7 +144,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
         _buildPortfolioCharts(context, portfolio),
         const SizedBox(height: 24),
         const Text(
-          "Holdings",
+          'Holdings',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
@@ -153,7 +157,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
   Widget _buildSummaryCard(
     BuildContext context,
     PortfolioSummary p,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     final isProfit = p.totalPl >= Decimal.zero;
 
@@ -183,7 +187,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Current Value",
+                    'Current Value',
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   const SizedBox(height: 4),
@@ -201,12 +205,12 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text(
-                    "Total Returns %",
+                    'Total Returns %',
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "${(p.totalPl.toDouble() / (p.totalInvested.toDouble() > 0 ? p.totalInvested.toDouble() : 1) * 100).toStringAsFixed(2)}%",
+                    '${(p.totalPl.toDouble() / (p.totalInvested.toDouble() > 0 ? p.totalInvested.toDouble() : 1) * 100).toStringAsFixed(2)}%',
                     style: TextStyle(
                       color: isProfit ? Colors.greenAccent : Colors.redAccent,
                       fontSize: 20,
@@ -225,7 +229,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Invested",
+                    'Invested',
                     style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   Text(
@@ -239,7 +243,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
               ),
               // Show Total Returns and Day Change
               _buildValueColumn(
-                "Total Returns",
+                'Total Returns',
                 p.totalPl,
                 (p.totalPl.toDouble() /
                         (p.totalInvested.toDouble() > 0
@@ -266,7 +270,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
     String label,
     Decimal value,
     String percentage,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     final isProfit = value >= Decimal.zero;
     return Column(
@@ -288,7 +292,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
             ),
             const SizedBox(width: 4),
             Text(
-              "($percentage)",
+              '($percentage)',
               style: TextStyle(
                 color: isProfit
                     ? Colors.greenAccent.withValues(alpha: 0.8)
@@ -326,7 +330,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
         _buildPerformanceChart(context),
         const SizedBox(height: 24),
         Text(
-          "Asset Allocation",
+          'Asset Allocation',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -495,7 +499,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
     final points = fundsService.timeline
         .map((e) {
           try {
-            final date = DateTime.parse(e['date']).toLocal();
+            final date = DateTime.parse(e['date'] as String).toLocal();
             final value =
                 (e['value'] as num).toDouble() / dashboardService.maskingFactor;
             return FlSpot(date.millisecondsSinceEpoch.toDouble(), value);
@@ -514,7 +518,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Portfolio Growth (1Y)",
+          'Portfolio Growth (1Y)',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -553,13 +557,13 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
               gridData: const FlGridData(show: false),
               titlesData: FlTitlesData(
                 leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
+                  
                 ),
                 rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
+                  
                 ),
                 topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
+                  
                 ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
@@ -589,7 +593,6 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
                   spots: points,
                   isCurved: true,
                   color: AppTheme.primary,
-                  barWidth: 2,
                   isStrokeCapRound: true,
                   dotData: const FlDotData(show: false),
                   belowBarData: BarAreaData(
@@ -616,7 +619,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
   Widget _buildHoldingItem(
     BuildContext context,
     FundHolding h,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     final theme = Theme.of(context);
     final dashboard = context.watch<DashboardService>();
@@ -650,9 +653,9 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 "Day's Change",
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                style: TextStyle(color: Colors.grey, fontSize: 11),
               ),
               Text(
                 "${h.dayChange >= Decimal.zero ? '+' : ''}${format(h.dayChange)} (${h.dayChangePercentage.toDouble().toStringAsFixed(2)}%)",
@@ -677,7 +680,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Current",
+                    'Current',
                     style: TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                   const SizedBox(height: 2),
@@ -691,7 +694,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text(
-                    "Total Returns",
+                    'Total Returns',
                     style: TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                   const SizedBox(height: 2),

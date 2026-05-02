@@ -1,6 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:mobile_app/core/services/foreground_task_handler.dart';
 import 'package:mobile_app/core/utils/logger.dart';
 
@@ -15,21 +16,15 @@ class ForegroundServiceWrapper {
         channelDescription: 'Live spending tracker and SMS sync',
         channelImportance: NotificationChannelImportance.HIGH,
         priority: NotificationPriority.HIGH,
-        playSound: false,
         onlyAlertOnce: true,
-        visibility: NotificationVisibility.VISIBILITY_PUBLIC,
       ),
-      iosNotificationOptions: const IOSNotificationOptions(
-        showNotification: true,
-        playSound: false,
-      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
       foregroundTaskOptions: ForegroundTaskOptions(
         eventAction: ForegroundTaskEventAction.repeat(
           5000,
         ), // 5s heartbeat for near-instant relay
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
-        allowWakeLock: true,
         allowWifiLock: true,
         stopWithTask: false,
       ),
@@ -67,7 +62,7 @@ class ForegroundServiceWrapper {
       final isRunning = await FlutterForegroundTask.isRunningService;
       if (isRunning) {
         await FlutterForegroundTask.stopService();
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       }
 
       final result = await FlutterForegroundTask.startService(
@@ -125,16 +120,18 @@ class ForegroundServiceWrapper {
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final today = (data['today_total'] ?? 0.0).toStringAsFixed(0);
-          final month = (data['monthly_total'] ?? 0.0).toStringAsFixed(0);
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final today = ((data['today_total'] as num?)?.toDouble() ?? 0.0)
+              .toStringAsFixed(0);
+          final month = ((data['monthly_total'] as num?)?.toDouble() ?? 0.0)
+              .toStringAsFixed(0);
 
-          final rawCurrency = data['currency'] ?? 'INR';
+          final rawCurrency = data['currency'] as String? ?? 'INR';
           final currency = rawCurrency == 'INR' ? '₹' : rawCurrency;
 
           final time = DateTime.now();
           final timeStr =
-              "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
           await FlutterForegroundTask.updateService(
             notificationTitle: 'WealthFam Guard',

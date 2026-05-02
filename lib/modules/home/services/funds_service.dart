@@ -7,6 +7,10 @@ import 'package:mobile_app/modules/home/models/fund_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FundsService extends ChangeNotifier {
+
+  FundsService(this._config, this._auth) {
+    _loadCache();
+  }
   final AppConfig _config;
   final AuthService _auth;
 
@@ -28,16 +32,12 @@ class FundsService extends ChangeNotifier {
 
   String get _cacheKey => 'cached_portfolio_${_selectedMemberId ?? 'all'}';
 
-  FundsService(this._config, this._auth) {
-    _loadCache();
-  }
-
   Future<void> _loadCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString(_cacheKey);
       if (cachedJson != null) {
-        _portfolio = PortfolioSummary.fromJson(jsonDecode(cachedJson));
+        _portfolio = PortfolioSummary.fromJson(jsonDecode(cachedJson) as Map<String, dynamic>);
         notifyListeners();
       }
     } catch (e) {
@@ -85,7 +85,7 @@ class FundsService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        _portfolio = PortfolioSummary.fromJson(jsonDecode(response.body));
+        _portfolio = PortfolioSummary.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
         _error = null;
         await _saveCache();
       } else {
@@ -114,7 +114,7 @@ class FundsService extends ChangeNotifier {
         headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
       );
       if (response.statusCode == 200) {
-        _syncStatus = jsonDecode(response.body);
+        _syncStatus = jsonDecode(response.body) as Map<String, dynamic>;
         notifyListeners();
       }
     } catch (e) {
@@ -175,7 +175,7 @@ class FundsService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final dynamic data = jsonDecode(response.body);
         if (data is Map && data['timeline'] != null) {
-          _timeline = List<Map<String, dynamic>>.from(data['timeline']);
+          _timeline = List<Map<String, dynamic>>.from(data['timeline'] as Iterable<dynamic>);
         } else if (data is List) {
           _timeline = List<Map<String, dynamic>>.from(data);
         }

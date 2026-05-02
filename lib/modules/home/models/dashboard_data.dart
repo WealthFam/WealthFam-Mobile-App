@@ -1,5 +1,5 @@
-import 'package:intl/intl.dart';
 import 'package:decimal/decimal.dart';
+import 'package:intl/intl.dart';
 
 Decimal _toDecimal(dynamic value) {
   if (value == null) return Decimal.zero;
@@ -9,6 +9,51 @@ Decimal _toDecimal(dynamic value) {
 }
 
 class DashboardData {
+
+  DashboardData({
+    required this.summary,
+    required this.budget,
+    required this.spendingTrend, required this.categoryDistribution, required this.monthWiseTrend, required this.recentTransactions, this.investmentSummary,
+    this.calendarHeatmap = const {},
+    this.pendingTriageCount = 0,
+    this.pendingTrainingCount = 0,
+    this.familyMembersCount,
+  });
+
+  factory DashboardData.fromJson(Map<String, dynamic> json) {
+    return DashboardData(
+      summary: DashboardSummary.fromJson(json['summary'] as Map<String, dynamic>),
+      budget: BudgetSummary.fromJson(json['budget'] as Map<String, dynamic>),
+      investmentSummary: json['investment_summary'] != null
+          ? InvestmentSummary.fromJson(
+            json['investment_summary'] as Map<String, dynamic>,
+          )
+          : null,
+      spendingTrend:
+          (json['spending_trend'] as List? ?? [])
+              .map((i) => SpendingTrendItem.fromJson(i as Map<String, dynamic>))
+              .toList(),
+      categoryDistribution:
+          (json['category_distribution'] as List? ?? [])
+              .map((i) => CategoryPieItem.fromJson(i as Map<String, dynamic>))
+              .toList(),
+      monthWiseTrend:
+          (json['month_wise_trend'] as List? ?? [])
+              .map((i) => MonthTrendItem.fromJson(i as Map<String, dynamic>))
+              .toList(),
+      recentTransactions:
+          (json['recent_transactions'] as List? ?? [])
+              .map((i) => RecentTransaction.fromJson(i as Map<String, dynamic>))
+              .toList(),
+      calendarHeatmap:
+          (json['calendar_heatmap'] as Map<String, dynamic>? ?? {}).map(
+            (k, v) => MapEntry(k, _toDecimal(v)),
+          ),
+      pendingTriageCount: json['pending_triage_count'] as int? ?? 0,
+      pendingTrainingCount: json['pending_training_count'] as int? ?? 0,
+      familyMembersCount: json['family_members_count'] as int?,
+    );
+  }
   final DashboardSummary summary;
   final BudgetSummary budget;
   final InvestmentSummary? investmentSummary;
@@ -20,47 +65,6 @@ class DashboardData {
   final int pendingTriageCount;
   final int pendingTrainingCount;
   final int? familyMembersCount;
-
-  DashboardData({
-    required this.summary,
-    required this.budget,
-    this.investmentSummary,
-    required this.spendingTrend,
-    required this.categoryDistribution,
-    required this.monthWiseTrend,
-    required this.recentTransactions,
-    this.calendarHeatmap = const {},
-    this.pendingTriageCount = 0,
-    this.pendingTrainingCount = 0,
-    this.familyMembersCount,
-  });
-
-  factory DashboardData.fromJson(Map<String, dynamic> json) {
-    return DashboardData(
-      summary: DashboardSummary.fromJson(json['summary']),
-      budget: BudgetSummary.fromJson(json['budget']),
-      investmentSummary: json['investment_summary'] != null
-          ? InvestmentSummary.fromJson(json['investment_summary'])
-          : null,
-      spendingTrend: (json['spending_trend'] as List? ?? [])
-          .map((i) => SpendingTrendItem.fromJson(i))
-          .toList(),
-      categoryDistribution: (json['category_distribution'] as List? ?? [])
-          .map((i) => CategoryPieItem.fromJson(i))
-          .toList(),
-      monthWiseTrend: (json['month_wise_trend'] as List? ?? [])
-          .map((i) => MonthTrendItem.fromJson(i))
-          .toList(),
-      recentTransactions: (json['recent_transactions'] as List? ?? [])
-          .map((i) => RecentTransaction.fromJson(i))
-          .toList(),
-      calendarHeatmap: (json['calendar_heatmap'] as Map<String, dynamic>? ?? {})
-          .map((k, v) => MapEntry(k, _toDecimal(v))),
-      pendingTriageCount: json['pending_triage_count'] ?? 0,
-      pendingTrainingCount: json['pending_training_count'] ?? 0,
-      familyMembersCount: json['family_members_count'],
-    );
-  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -112,9 +116,6 @@ class DashboardData {
 }
 
 class SpendingTrendItem {
-  final String date;
-  final Decimal amount;
-  final Decimal dailyLimit;
 
   SpendingTrendItem({
     required this.date,
@@ -124,11 +125,14 @@ class SpendingTrendItem {
 
   factory SpendingTrendItem.fromJson(Map<String, dynamic> json) {
     return SpendingTrendItem(
-      date: json['date'],
+      date: json['date'] as String,
       amount: _toDecimal(json['amount']),
       dailyLimit: _toDecimal(json['daily_limit']),
     );
   }
+  final String date;
+  final Decimal amount;
+  final Decimal dailyLimit;
 
   Map<String, dynamic> toJson() => {
     'date': date,
@@ -140,29 +144,22 @@ class SpendingTrendItem {
 }
 
 class CategoryPieItem {
-  final String name;
-  final Decimal value;
 
   CategoryPieItem({required this.name, required this.value});
 
   factory CategoryPieItem.fromJson(Map<String, dynamic> json) {
     return CategoryPieItem(
-      name: json['name'],
+      name: json['name'] as String,
       value: _toDecimal(json['value']),
     );
   }
+  final String name;
+  final Decimal value;
 
   Map<String, dynamic> toJson() => {'name': name, 'value': value.toString()};
 }
 
 class DashboardSummary {
-  final Decimal todayTotal;
-  final Decimal yesterdayTotal;
-  final Decimal lastMonthSameDayTotal;
-  final Decimal monthlyTotal;
-  final String currency;
-  final Decimal dailyBudgetLimit;
-  final Decimal proratedBudget;
 
   DashboardSummary({
     required this.todayTotal,
@@ -180,11 +177,18 @@ class DashboardSummary {
       yesterdayTotal: _toDecimal(json['yesterday_total']),
       lastMonthSameDayTotal: _toDecimal(json['last_month_same_day_total']),
       monthlyTotal: _toDecimal(json['monthly_total']),
-      currency: json['currency'] ?? 'INR',
+      currency: json['currency'] as String? ?? 'INR',
       dailyBudgetLimit: _toDecimal(json['daily_budget_limit']),
       proratedBudget: _toDecimal(json['prorated_budget']),
     );
   }
+  final Decimal todayTotal;
+  final Decimal yesterdayTotal;
+  final Decimal lastMonthSameDayTotal;
+  final Decimal monthlyTotal;
+  final String currency;
+  final Decimal dailyBudgetLimit;
+  final Decimal proratedBudget;
 
   Map<String, dynamic> toJson() => {
     'today_total': todayTotal.toString(),
@@ -198,9 +202,6 @@ class DashboardSummary {
 }
 
 class BudgetSummary {
-  final Decimal limit;
-  final Decimal spent;
-  final Decimal percentage;
 
   BudgetSummary({
     required this.limit,
@@ -215,6 +216,9 @@ class BudgetSummary {
       percentage: _toDecimal(json['percentage']),
     );
   }
+  final Decimal limit;
+  final Decimal spent;
+  final Decimal percentage;
 
   Map<String, dynamic> toJson() => {
     'limit': limit.toString(),
@@ -224,22 +228,13 @@ class BudgetSummary {
 }
 
 class InvestmentSummary {
-  final Decimal totalInvested;
-  final Decimal currentValue;
-  final Decimal profitLoss;
-  final Decimal? xirr;
-  final List<double> sparkline;
-  final Decimal dayChange;
-  final Decimal dayChangePercent;
 
   InvestmentSummary({
     required this.totalInvested,
     required this.currentValue,
     required this.profitLoss,
-    this.xirr,
+    required this.dayChange, required this.dayChangePercent, this.xirr,
     this.sparkline = const [],
-    required this.dayChange,
-    required this.dayChangePercent,
   });
 
   factory InvestmentSummary.fromJson(Map<String, dynamic> json) {
@@ -255,6 +250,13 @@ class InvestmentSummary {
       dayChangePercent: _toDecimal(json['day_change_percent']),
     );
   }
+  final Decimal totalInvested;
+  final Decimal currentValue;
+  final Decimal profitLoss;
+  final Decimal? xirr;
+  final List<double> sparkline;
+  final Decimal dayChange;
+  final Decimal dayChangePercent;
 
   Map<String, dynamic> toJson() => {
     'total_invested': totalInvested.toString(),
@@ -268,21 +270,6 @@ class InvestmentSummary {
 }
 
 class RecentTransaction {
-  final String id;
-  final DateTime date;
-  final String description;
-  final Decimal amount;
-  final String category;
-  final String? accountId;
-  final String? accountName;
-  final String? accountOwnerName;
-  final bool isHidden;
-  final bool isTransfer;
-  final bool excludeFromReports;
-  final String? expenseGroupId;
-  final String? expenseGroupName;
-  final String? source;
-  final bool hasDocuments;
 
   RecentTransaction({
     required this.id,
@@ -304,23 +291,38 @@ class RecentTransaction {
 
   factory RecentTransaction.fromJson(Map<String, dynamic> json) {
     return RecentTransaction(
-      id: json['id'],
-      date: DateTime.parse(json['date']).toLocal(),
-      description: json['description'] ?? '',
+      id: json['id'] as String,
+      date: DateTime.parse(json['date'] as String).toLocal(),
+      description: json['description'] as String? ?? '',
       amount: _toDecimal(json['amount']),
-      category: json['category'] ?? 'Uncategorized',
-      accountId: json['account_id'],
-      accountName: json['account_name'],
-      accountOwnerName: json['account_owner_name'],
-      isHidden: json['is_hidden'] ?? false,
-      isTransfer: json['is_transfer'] ?? false,
-      excludeFromReports: json['exclude_from_reports'] ?? false,
-      expenseGroupId: json['expense_group_id'],
-      expenseGroupName: json['expense_group_name'],
-      source: json['source'],
-      hasDocuments: json['has_documents'] ?? false,
+      category: json['category'] as String? ?? 'Uncategorized',
+      accountId: json['account_id'] as String?,
+      accountName: json['account_name'] as String?,
+      accountOwnerName: json['account_owner_name'] as String?,
+      isHidden: json['is_hidden'] as bool? ?? false,
+      isTransfer: json['is_transfer'] as bool? ?? false,
+      excludeFromReports: json['exclude_from_reports'] as bool? ?? false,
+      expenseGroupId: json['expense_group_id'] as String?,
+      expenseGroupName: json['expense_group_name'] as String?,
+      source: json['source'] as String?,
+      hasDocuments: json['has_documents'] as bool? ?? false,
     );
   }
+  final String id;
+  final DateTime date;
+  final String description;
+  final Decimal amount;
+  final String category;
+  final String? accountId;
+  final String? accountName;
+  final String? accountOwnerName;
+  final bool isHidden;
+  final bool isTransfer;
+  final bool excludeFromReports;
+  final String? expenseGroupId;
+  final String? expenseGroupName;
+  final String? source;
+  final bool hasDocuments;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -344,10 +346,6 @@ class RecentTransaction {
 }
 
 class MonthTrendItem {
-  final String month;
-  final Decimal spent;
-  final Decimal budget;
-  final bool isSelected;
 
   MonthTrendItem({
     required this.month,
@@ -358,12 +356,16 @@ class MonthTrendItem {
 
   factory MonthTrendItem.fromJson(Map<String, dynamic> json) {
     return MonthTrendItem(
-      month: json['month'],
+      month: json['month'] as String,
       spent: _toDecimal(json['spent']),
       budget: _toDecimal(json['budget']),
-      isSelected: json['is_selected'] ?? false,
+      isSelected: json['is_selected'] as bool? ?? false,
     );
   }
+  final String month;
+  final Decimal spent;
+  final Decimal budget;
+  final bool isSelected;
 
   Map<String, dynamic> toJson() => {
     'month': month,

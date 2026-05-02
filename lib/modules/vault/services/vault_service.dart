@@ -4,23 +4,15 @@ import 'dart:io';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/errors/either.dart';
 import 'package:mobile_app/core/errors/failures.dart';
 import 'package:mobile_app/core/utils/network_resilience.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LinkedTransaction {
-  final String id;
-  final String description;
-  final Decimal amount;
-  final DateTime date;
-  final String? category;
-  final String? accountName;
-
   LinkedTransaction({
     required this.id,
     required this.description,
@@ -32,19 +24,62 @@ class LinkedTransaction {
 
   factory LinkedTransaction.fromJson(Map<String, dynamic> json) {
     return LinkedTransaction(
-      id: json['id'],
-      description: json['description'] ?? 'No description',
+      id: json['id'] as String,
+      description: (json['description'] as String?) ?? 'No description',
       amount: Decimal.parse((json['amount'] ?? 0).toString()),
       date: DateTime.parse(
-        json['date'] ?? DateTime.now().toUtc().toIso8601String(),
+        (json['date'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
       ).toLocal(),
-      category: json['category'],
-      accountName: json['account_name'],
+      category: json['category'] as String?,
+      accountName: json['account_name'] as String?,
     );
   }
+
+  final String id;
+  final String description;
+  final Decimal amount;
+  final DateTime date;
+  final String? category;
+  final String? accountName;
 }
 
 class VaultDocument {
+  const VaultDocument({
+    required this.id,
+    required this.filename,
+    required this.fileType,
+    required this.createdAt,
+    this.description,
+    this.isFolder = false,
+    this.thumbnailPath,
+    this.mimeType,
+    this.fileSize = 0,
+    this.parentId,
+    this.transactionId,
+    this.linkedTransaction,
+  });
+
+  factory VaultDocument.fromJson(Map<String, dynamic> json) {
+    return VaultDocument(
+      id: json['id'] as String,
+      filename: (json['filename'] as String?) ?? (json['name'] as String?) ?? 'Untitled',
+      fileType: (json['file_type'] as String?) ?? 'OTHER',
+      description: json['description'] as String?,
+      createdAt: DateTime.parse(
+        (json['created_at'] as String?) ?? DateTime.now().toUtc().toIso8601String(),
+      ).toLocal(),
+      isFolder: (json['is_folder'] as bool?) ?? false,
+      thumbnailPath: json['thumbnail_path'] as String?,
+      mimeType: json['mime_type'] as String?,
+      fileSize: (json['file_size'] as num?)?.toDouble() ?? 0,
+      parentId: json['parent_id'] as String?,
+      transactionId: json['transaction_id'] as String?,
+      linkedTransaction: json['transaction'] != null
+          ? LinkedTransaction.fromJson(json['transaction'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+
   final String id;
   final String filename;
   final String fileType;
@@ -57,42 +92,6 @@ class VaultDocument {
   final String? parentId;
   final String? transactionId;
   final LinkedTransaction? linkedTransaction;
-
-  VaultDocument({
-    required this.id,
-    required this.filename,
-    required this.fileType,
-    this.description,
-    required this.createdAt,
-    this.isFolder = false,
-    this.thumbnailPath,
-    this.mimeType,
-    this.fileSize = 0,
-    this.parentId,
-    this.transactionId,
-    this.linkedTransaction,
-  });
-
-  factory VaultDocument.fromJson(Map<String, dynamic> json) {
-    return VaultDocument(
-      id: json['id'],
-      filename: json['filename'] ?? json['name'] ?? 'Untitled',
-      fileType: json['file_type'] ?? 'OTHER',
-      description: json['description'],
-      createdAt: DateTime.parse(
-        json['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
-      ).toLocal(),
-      isFolder: json['is_folder'] ?? false,
-      thumbnailPath: json['thumbnail_path'],
-      mimeType: json['mime_type'],
-      fileSize: (json['file_size'] as num?)?.toDouble() ?? 0,
-      parentId: json['parent_id'],
-      transactionId: json['transaction_id'],
-      linkedTransaction: json['transaction'] != null
-          ? LinkedTransaction.fromJson(json['transaction'])
-          : null,
-    );
-  }
 
   String get formattedSize {
     if (fileSize <= 0) return '0 B';
@@ -108,6 +107,8 @@ class VaultDocument {
 }
 
 class VaultService extends ChangeNotifier with NetworkResilience {
+  VaultService(this._config, this._auth);
+
   final AppConfig _config;
   final AuthService _auth;
 
@@ -119,6 +120,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
   final List<Map<String, String>> _navigationStack = [
     {'id': 'ROOT', 'name': 'Vault'},
   ];
+
   List<Map<String, String>> get breadcrumbs =>
       List.unmodifiable(_navigationStack);
   String get currentParentId => _navigationStack.last['id']!;
@@ -136,8 +138,6 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
   String _fileType = 'ALL';
   String get fileType => _fileType;
-
-  VaultService(this._config, this._auth);
 
   void setFileType(String type) {
     _fileType = type;
@@ -163,8 +163,8 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString(_cacheKey);
       if (cachedJson != null) {
-        final List<dynamic> data = jsonDecode(cachedJson);
-        _documents = data.map((e) => VaultDocument.fromJson(e)).toList();
+        final List<dynamic> data = jsonDecode(cachedJson) as List<dynamic>;
+        _documents = data.map((e) => VaultDocument.fromJson(e as Map<String, dynamic>)).toList();
         notifyListeners();
       }
     } catch (e) {
@@ -227,9 +227,9 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         headers: {...authHeaders, 'Content-Type': 'application/json'},
       ),
       onSuccess: (body) async {
-        final Map<String, dynamic> responseData = jsonDecode(body);
-        final List<dynamic> itemsData = responseData['data'];
-        final docs = itemsData.map((e) => VaultDocument.fromJson(e)).toList();
+        final Map<String, dynamic> responseData = jsonDecode(body as String) as Map<String, dynamic>;
+        final List<dynamic> itemsData = responseData['data'] as List<dynamic>;
+        final docs = itemsData.map((e) => VaultDocument.fromJson(e as Map<String, dynamic>)).toList();
         _documents = docs;
         _error = null;
         await _saveCache();
@@ -266,9 +266,12 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         headers: authHeaders,
       ),
       onSuccess: (body) async {
-        final Map<String, dynamic> responseData = jsonDecode(body);
-        final List<dynamic> itemsData = responseData['data'];
-        return itemsData.map((e) => VaultDocument.fromJson(e)).toList();
+        final Map<String, dynamic> responseData =
+            jsonDecode(body as String) as Map<String, dynamic>;
+        final List<dynamic> itemsData = responseData['data'] as List<dynamic>;
+        return itemsData
+            .map((e) => VaultDocument.fromJson(e as Map<String, dynamic>))
+            .toList();
       },
     );
 
@@ -289,9 +292,12 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         headers: authHeaders,
       ),
       onSuccess: (body) async {
-        final Map<String, dynamic> responseData = jsonDecode(body);
-        final List<dynamic> itemsData = responseData['data'];
-        return itemsData.map((e) => VaultDocument.fromJson(e)).toList();
+        final Map<String, dynamic> responseData =
+            jsonDecode(body as String) as Map<String, dynamic>;
+        final List<dynamic> itemsData = responseData['data'] as List<dynamic>;
+        return itemsData
+            .map((e) => VaultDocument.fromJson(e as Map<String, dynamic>))
+            .toList();
       },
     );
 
@@ -391,7 +397,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         headers: {...authHeaders, 'Content-Type': 'application/json'},
         body: jsonEncode({
           'doc_ids': docIds,
-          'target_parent_id': targetParentId == "ROOT" ? null : targetParentId,
+          'target_parent_id': targetParentId == 'ROOT' ? null : targetParentId,
         }),
       ),
       onSuccess: (_) {
@@ -422,7 +428,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         body: jsonEncode({'transaction_id': transactionId}),
       ),
       onSuccess: (body) async {
-        final updatedDoc = VaultDocument.fromJson(jsonDecode(body));
+        final updatedDoc = VaultDocument.fromJson(jsonDecode(body as String) as Map<String, dynamic>);
         final index = _documents.indexWhere((d) => d.id == updatedDoc.id);
         if (index != -1) {
           _documents[index] = updatedDoc;
@@ -440,7 +446,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
   Future<Either<Failure, Unit>> uploadDocument({
     required String filePath,
     required String fileName,
-    String fileType = "OTHER",
+    String fileType = 'OTHER',
     String? description,
     bool isShared = true,
     String? transactionId,
@@ -459,7 +465,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
           ..fields['is_shared'] = isShared.toString();
 
         final targetParent =
-            parentId ?? (currentParentId == "ROOT" ? "" : currentParentId);
+            parentId ?? (currentParentId == 'ROOT' ? '' : currentParentId);
         if (targetParent.isNotEmpty) {
           request.fields['parent_id'] = targetParent;
         }
@@ -498,16 +504,17 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     try {
       final url = Uri.parse(
         '${_config.backendUrl}/api/v1/finance/vault',
-      ).replace(queryParameters: {'parent_id': parentId ?? ""});
+      ).replace(queryParameters: {'parent_id': parentId ?? ''});
 
       final response = await http.get(url, headers: authHeaders);
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        final List<dynamic> data = responseData['data'];
-        for (var item in data) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body) as Map<String, dynamic>;
+        final List<dynamic> data = responseData['data'] as List<dynamic>;
+        for (var itemRaw in data) {
+          final item = itemRaw as Map<String, dynamic>;
           if (item['is_folder'] == true &&
-              (item['filename'] ?? item['name']) == name) {
-            return item['id'];
+              (item['filename'] as String? ?? item['name'] as String?) == name) {
+            return item['id'] as String?;
           }
         }
       }
@@ -520,7 +527,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         ..headers.addAll(authHeaders)
         ..fields['name'] = name;
 
-      if (parentId != null && parentId != "ROOT" && parentId.isNotEmpty) {
+      if (parentId != null && parentId != 'ROOT' && parentId.isNotEmpty) {
         request.fields['parent_id'] = parentId;
       }
 
@@ -529,8 +536,8 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
       if (createResponse.statusCode == 200 ||
           createResponse.statusCode == 201) {
-        final data = jsonDecode(createResponse.body);
-        return data['id'];
+        final data = jsonDecode(createResponse.body) as Map<String, dynamic>;
+        return data['id'] as String?;
       }
     } catch (e) {
       debugPrint('VaultService: Error in getOrCreateFolderByName: $e');
@@ -549,8 +556,8 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         final request = http.MultipartRequest('POST', url)
           ..headers.addAll(authHeaders)
           ..fields['name'] = name
-          ..fields['parent_id'] = currentParentId == "ROOT"
-              ? ""
+          ..fields['parent_id'] = currentParentId == 'ROOT'
+              ? ''
               : currentParentId;
 
         final streamedResponse = await request.send();
@@ -638,7 +645,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
     return await callWithResilience<List<dynamic>>(
       call: () => http.get(url, headers: authHeaders),
-      onSuccess: (body) => jsonDecode(body)['data'] as List<dynamic>,
+      onSuccess: (body) => (jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>,
     );
   }
 }

@@ -72,7 +72,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+  # dart_code_metrics removed due to dependency conflict with device_info_plus ^12.3.0
 
+  
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true

@@ -1,6 +1,7 @@
 import 'dart:convert';
+
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
@@ -8,7 +9,7 @@ import 'package:mobile_app/core/widgets/category_picker.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/models/dashboard_data.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:decimal/decimal.dart';
+import 'package:provider/provider.dart';
 
 class TransactionReviewScreen extends StatefulWidget {
   const TransactionReviewScreen({super.key});
@@ -49,11 +50,11 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
       );
       if (response.statusCode == 200) {
         setState(() {
-          _accounts = jsonDecode(response.body);
+          _accounts = jsonDecode(response.body) as List<dynamic>;
         });
       }
     } catch (e) {
-      debugPrint("Error fetching accounts: $e");
+      debugPrint('Error fetching accounts: $e');
     }
   }
 
@@ -69,11 +70,11 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
       );
       if (response.statusCode == 200) {
         setState(() {
-          _potentialMatches[pendingId] = jsonDecode(response.body);
+          _potentialMatches[pendingId] = jsonDecode(response.body) as List<dynamic>;
         });
       }
     } catch (e) {
-      debugPrint("Error fetching matches: $e");
+      debugPrint('Error fetching matches: $e');
     }
   }
 
@@ -92,9 +93,9 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
       );
 
       if (response.statusCode == 200) {
-        final List raw =
-            jsonDecode(utf8.decode(response.bodyBytes))['data'] ?? [];
-        final items = raw.map((i) => RecentTransaction.fromJson(i)).toList();
+        final raw =
+            (jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>)['data'] as List<dynamic>? ?? [];
+        final items = raw.map((i) => RecentTransaction.fromJson(i as Map<String, dynamic>)).toList();
 
         setState(() {
           _triageItems = items;
@@ -331,7 +332,7 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.accountName ?? "Unknown"} • ${item.formattedDate}',
+                      '${item.accountName ?? 'Unknown'} • ${item.formattedDate}',
                       style: TextStyle(
                         color: theme.colorScheme.onSurfaceVariant.withValues(
                           alpha: 0.6,
@@ -427,7 +428,6 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
               fillColor: theme.colorScheme.surface,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical: 0,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -435,10 +435,11 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
               ),
             ),
             hint: const Text('Select Account', style: TextStyle(fontSize: 13)),
-            items: _accounts.where((a) => a['id'] != item.accountId).map((a) {
+            items: _accounts.where((a) => (a as Map<String, dynamic>)['id'] != item.accountId).map((aRaw) {
+              final a = aRaw as Map<String, dynamic>;
               return DropdownMenuItem(
                 value: a['id'] as String,
-                child: Text(a['name'], style: const TextStyle(fontSize: 13)),
+                child: Text(a['name'] as String, style: const TextStyle(fontSize: 13)),
               );
             }).toList(),
             onChanged: (v) {
@@ -484,12 +485,13 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
   Widget _buildMatchPicker(String pendingId, List<dynamic> matches) {
     final theme = Theme.of(context);
     return Column(
-      children: matches.map((m) {
+      children: matches.map((mRaw) {
+        final m = mRaw as Map<String, dynamic>;
         final isSelected = _linkedTransactionIds[pendingId] == m['id'];
         return InkWell(
           onTap: () => setState(
             () =>
-                _linkedTransactionIds[pendingId] = isSelected ? null : m['id'],
+                _linkedTransactionIds[pendingId] = isSelected ? null : m['id'] as String?
           ),
           child: Container(
             margin: const EdgeInsets.only(bottom: 4),
@@ -512,7 +514,7 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        m['description'],
+                        m['description'] as String,
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -530,11 +532,11 @@ class _TransactionReviewScreenState extends State<TransactionReviewScreen> {
                   ),
                 ),
                 Text(
-                  '${m['amount'] > 0 ? "+" : ""}${m['amount']}',
+                  '${(m['amount'] as num) > 0 ? "+" : ""}${m['amount']}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: m['amount'] > 0 ? AppTheme.success : AppTheme.danger,
+                    color: (m['amount'] as num) > 0 ? AppTheme.success : AppTheme.danger,
                   ),
                 ),
                 const SizedBox(width: 8),

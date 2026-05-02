@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/core/config/app_config.dart';
+import 'package:mobile_app/core/services/theme_provider.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/auth/services/security_service.dart';
-import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
-import 'package:mobile_app/modules/ingestion/screens/sms_debug_logs_screen.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/modules/ingestion/screens/sms_debug_logs_screen.dart';
+import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
+import 'package:provider/provider.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
   const SyncSettingsScreen({super.key});
@@ -66,7 +67,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     final maskingFactor = double.tryParse(_maskingCtrl.text) ?? 1.0;
     await dashboardService.setMaskingFactor(maskingFactor);
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,7 +80,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   }
 
   void _confirmLogout() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sign Out'),
@@ -146,6 +147,10 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               const SizedBox(height: 24),
               _buildSectionTitle('SERVER CONFIGURATION'),
               _buildServerCard(theme),
+
+              const SizedBox(height: 24),
+              _buildSectionTitle('DISPLAY MODE'),
+              _buildThemeCard(context.watch<ThemeProvider>()),
 
               const SizedBox(height: 24),
               _buildSectionTitle('SECURITY & PRIVACY'),
@@ -412,7 +417,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SmsDebugLogsScreen()),
+                MaterialPageRoute<void>(builder: (_) => const SmsDebugLogsScreen()),
               );
             },
           ),
@@ -448,11 +453,70 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     );
   }
 
+  Widget _buildThemeCard(ThemeProvider themeProvider) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          children: [
+            _buildThemeOption(
+              'Light Mode',
+              Icons.light_mode_outlined,
+              ThemeMode.light,
+              themeProvider,
+            ),
+            const Divider(height: 1, indent: 56),
+            _buildThemeOption(
+              'Dark Mode',
+              Icons.dark_mode_outlined,
+              ThemeMode.dark,
+              themeProvider,
+            ),
+            const Divider(height: 1, indent: 56),
+            _buildThemeOption(
+              'System Default',
+              Icons.settings_suggest_outlined,
+              ThemeMode.system,
+              themeProvider,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeOption(
+    String title,
+    IconData icon,
+    ThemeMode mode,
+    ThemeProvider provider,
+  ) {
+    final isSelected = provider.themeMode == mode;
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? AppTheme.primary : Colors.grey,
+        size: 20,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing: isSelected
+          ? const Icon(Icons.check_circle, color: AppTheme.primary, size: 20)
+          : null,
+      onTap: () => provider.setThemeMode(mode),
+    );
+  }
+
   Widget _buildSwitchTile({
     required String title,
     required String subtitle,
     required bool value,
-    required Function(bool) onChanged,
+    required void Function(bool) onChanged,
     required IconData icon,
   }) {
     return SwitchListTile(

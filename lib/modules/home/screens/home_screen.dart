@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:mobile_app/modules/home/screens/dashboard_screen.dart';
-import 'package:mobile_app/modules/home/screens/analytics_screen.dart';
-import 'package:mobile_app/modules/home/screens/mutual_funds_screen.dart';
-import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/core/services/navigation_service.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/modules/home/screens/analytics_screen.dart';
+import 'package:mobile_app/modules/home/screens/dashboard_screen.dart';
+import 'package:mobile_app/modules/home/screens/mutual_funds_screen.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
             border: Border.symmetric(
-              vertical: BorderSide(color: theme.dividerColor, width: 1),
+              vertical: BorderSide(color: theme.dividerColor),
             ),
             boxShadow: [
               BoxShadow(

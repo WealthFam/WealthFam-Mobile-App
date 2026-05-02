@@ -1,21 +1,20 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:decimal/decimal.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 
 class CalendarHeatmapWidget extends StatelessWidget {
-  final Map<String, Decimal> data;
-  final double maskingFactor;
-  final DateTime? startDate;
-  final DateTime? endDate;
 
   const CalendarHeatmapWidget({
-    super.key,
-    required this.data,
+    required this.data, super.key,
     this.maskingFactor = 1.0,
     this.startDate,
     this.endDate,
   });
+  final Map<String, Decimal> data;
+  final double maskingFactor;
+  final DateTime? startDate;
+  final DateTime? endDate;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +93,7 @@ class CalendarHeatmapWidget extends StatelessWidget {
             Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey),
             SizedBox(height: 12),
             Text(
-              "No spending activity recorded",
+              'No spending activity recorded',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -141,7 +140,7 @@ class CalendarHeatmapWidget extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          "Fiscal Pulse",
+          'Fiscal Pulse',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         ),
         Text(
@@ -256,7 +255,7 @@ class CalendarHeatmapWidget extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        const Text("Less", style: TextStyle(fontSize: 9, color: Colors.grey)),
+        const Text('Less', style: TextStyle(fontSize: 9, color: Colors.grey)),
         const SizedBox(width: 4),
         ...List.generate(
           5,
@@ -271,7 +270,7 @@ class CalendarHeatmapWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        const Text("More", style: TextStyle(fontSize: 9, color: Colors.grey)),
+        const Text('More', style: TextStyle(fontSize: 9, color: Colors.grey)),
       ],
     );
   }

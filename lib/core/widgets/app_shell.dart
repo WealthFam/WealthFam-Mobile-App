@@ -1,33 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:mobile_app/core/services/navigation_service.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
-import 'package:mobile_app/modules/home/screens/analytics_screen.dart';
-import 'package:mobile_app/modules/home/screens/mutual_funds_screen.dart';
-import 'package:mobile_app/modules/home/screens/expense_groups_screen.dart';
-import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
 import 'package:mobile_app/modules/config/screens/sync_settings_screen.dart';
+import 'package:mobile_app/modules/home/screens/analytics_screen.dart';
 import 'package:mobile_app/modules/home/screens/categories_management_screen.dart';
+import 'package:mobile_app/modules/home/screens/expense_groups_screen.dart';
 import 'package:mobile_app/modules/home/screens/goals_screen.dart';
+import 'package:mobile_app/modules/home/screens/mutual_funds_screen.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/ingestion/screens/sms_management_screen.dart';
-import 'package:mobile_app/core/services/navigation_service.dart';
+import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
+import 'package:provider/provider.dart';
 
 /// Key kept for HomeScreen compatibility.
 final GlobalKey<ScaffoldState> appShellScaffoldKey = GlobalKey<ScaffoldState>();
 
 /// Wraps the home screen body with the global drawer scaffold.
 class AppShell extends StatelessWidget {
-  final Widget body;
-  final PreferredSizeWidget? appBar;
-  final Color? backgroundColor;
 
   const AppShell({
-    super.key,
-    required this.body,
+    required this.body, super.key,
     this.appBar,
     this.backgroundColor,
   });
+  final Widget body;
+  final PreferredSizeWidget? appBar;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -70,12 +69,15 @@ class AppDrawer extends StatelessWidget {
       context.read<NavigationProvider>().setTab(tabIndex);
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => screen),
+      );
     }
   }
 
   void _confirmSignOut(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Sign Out'),

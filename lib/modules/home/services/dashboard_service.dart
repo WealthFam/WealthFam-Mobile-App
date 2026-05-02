@@ -1,21 +1,30 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:decimal/decimal.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
+import 'package:mobile_app/core/errors/either.dart';
+import 'package:mobile_app/core/errors/failures.dart';
+import 'package:mobile_app/core/utils/logger.dart';
+import 'package:mobile_app/core/utils/network_resilience.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/models/dashboard_data.dart';
 import 'package:mobile_app/modules/home/models/unparsed_message.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
-import 'package:decimal/decimal.dart';
-import 'package:mobile_app/core/errors/either.dart';
-import 'package:mobile_app/core/errors/failures.dart';
-import 'package:mobile_app/core/utils/network_resilience.dart';
-import 'package:mobile_app/core/utils/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DashboardService extends ChangeNotifier with NetworkResilience {
+
+  DashboardService(this._config, this._auth) {
+    var now = DateTime.now();
+    _selectedMonth = now.month;
+    _selectedYear = now.year;
+    refreshMembers();
+    loadSettings();
+  }
   final AppConfig _config;
   final AuthService _auth;
 
@@ -48,14 +57,6 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   String get currencySymbol {
     final c = _data?.summary.currency ?? 'INR';
     return c == 'INR' ? '₹' : c;
-  }
-
-  DashboardService(this._config, this._auth) {
-    var now = DateTime.now();
-    _selectedMonth = now.month;
-    _selectedYear = now.year;
-    refreshMembers();
-    loadSettings();
   }
 
   Future<void> loadSettings() async {
@@ -98,7 +99,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     try {
       await FlutterForegroundTask.saveData(key: 'masking_factor', value: value);
     } catch (e) {
-      AppLogger.warn("DashboardService: Failed to sync masking to FG: $e");
+      AppLogger.warn('DashboardService: Failed to sync masking to FG: $e');
     }
   }
 
@@ -115,7 +116,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString(_cacheKey);
       if (cachedJson != null) {
-        _data = DashboardData.fromJson(jsonDecode(cachedJson));
+        _data = DashboardData.fromJson(jsonDecode(cachedJson) as Map<String, dynamic>);
         notifyListeners();
       }
     } catch (e) {
@@ -157,7 +158,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         Uri.parse('${_config.backendUrl}/api/v1/mobile/members'),
         headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
       ),
-      onSuccess: (body) => jsonDecode(body) as List<dynamic>,
+      onSuccess: (body) => jsonDecode(body as String) as List<dynamic>,
     );
 
     result.fold(
@@ -176,7 +177,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     _error = null;
     notifyListeners();
 
-    final List<Future> futures = [
+    final List<Future<void>> futures = [
       _fetchDashboardSummary(),
       _fetchDashboardTrends(),
       _fetchDashboardCategories(),
@@ -213,14 +214,14 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body),
+      onSuccess: (body) => jsonDecode(body as String) as Map<String, dynamic>,
     );
 
     result.fold((failure) => _error = failure.message, (data) {
-      final summary = DashboardSummary.fromJson(data['summary']);
-      final budget = BudgetSummary.fromJson(data['budget']);
+      final summary = DashboardSummary.fromJson(data['summary'] as Map<String, dynamic>);
+      final budget = BudgetSummary.fromJson(data['budget'] as Map<String, dynamic>);
       final txns = (data['recent_transactions'] as List)
-          .map((i) => RecentTransaction.fromJson(i))
+          .map((i) => RecentTransaction.fromJson(i as Map<String, dynamic>))
           .where((t) => !t.isHidden)
           .toList();
 
@@ -229,9 +230,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
           summary: summary,
           budget: budget,
           recentTransactions: txns,
-          pendingTriageCount: data['pending_triage_count'],
-          pendingTrainingCount: data['pending_training_count'] ?? 0,
-          familyMembersCount: data['family_members_count'],
+          pendingTriageCount: (data['pending_triage_count'] as num?)?.toInt(),
+          pendingTrainingCount: (data['pending_training_count'] as num?)?.toInt() ?? 0,
+          familyMembersCount: (data['family_members_count'] as num?)?.toInt(),
         ),
       );
     });
@@ -245,15 +246,15 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body),
+      onSuccess: (body) => jsonDecode(body as String) as Map<String, dynamic>,
     );
 
     result.fold((failure) => _error = failure.message, (data) {
       final spendingTrend = (data['spending_trend'] as List)
-          .map((i) => SpendingTrendItem.fromJson(i))
+          .map((i) => SpendingTrendItem.fromJson(i as Map<String, dynamic>))
           .toList();
       final monthWiseTrend = (data['month_wise_trend'] as List)
-          .map((i) => MonthTrendItem.fromJson(i))
+          .map((i) => MonthTrendItem.fromJson(i as Map<String, dynamic>))
           .toList();
 
       _updateData(
@@ -273,12 +274,12 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body),
+      onSuccess: (body) => jsonDecode(body as String) as Map<String, dynamic>,
     );
 
     result.fold((failure) => _error = failure.message, (data) {
       final categories = (data['category_distribution'] as List)
-          .map((i) => CategoryPieItem.fromJson(i))
+          .map((i) => CategoryPieItem.fromJson(i as Map<String, dynamic>))
           .toList();
 
       _updateData((d) => d.copyWith(categoryDistribution: categories));
@@ -293,14 +294,14 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body),
+      onSuccess: (body) => jsonDecode(body as String) as Map<String, dynamic>,
     );
 
     result.fold((failure) => _error = failure.message, (data) {
       InvestmentSummary? investmentSummary;
       if (data['investment_summary'] != null) {
         investmentSummary = InvestmentSummary.fromJson(
-          data['investment_summary'],
+          data['investment_summary'] as Map<String, dynamic>,
         );
       }
       _updateData((d) => d.copyWith(investmentSummary: investmentSummary));
@@ -315,11 +316,12 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body),
+      onSuccess: (body) => jsonDecode(body as String) as Map<String, dynamic>,
     );
 
     result.fold((failure) => _error = failure.message, (data) {
-      final Map<String, Decimal> heatmap = data.map(
+      final heatmapData = data;
+      final Map<String, Decimal> heatmap = heatmapData.map(
         (k, v) => MapEntry(k, Decimal.parse(v.toString())),
       );
       _updateData((d) => d.copyWith(calendarHeatmap: heatmap));
@@ -338,10 +340,10 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) {
-        final data = jsonDecode(body);
-        final List items = data['data'] ?? [];
-        return items.map((i) => UnparsedMessage.fromJson(i)).toList();
+onSuccess: (body) {
+        final data = jsonDecode(body as String) as Map<String, dynamic>;
+        final items = data['data'] as List? ?? [];
+        return items.map((i) => UnparsedMessage.fromJson(i as Map<String, dynamic>)).toList();
       },
     );
   }
@@ -386,7 +388,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         Uri.parse('${_config.backendUrl}/api/v1/mobile/accounts'),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body)['data'] as List<dynamic>,
+      onSuccess: (body) => (jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>,
     );
   }
 
@@ -412,7 +414,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         headers: _getHeaders(),
         body: jsonEncode({'content': content}),
       ),
-      onSuccess: (body) => jsonDecode(body),
+      onSuccess: (body) => jsonDecode(body as String) as Map<String, dynamic>,
     );
   }
 
@@ -422,7 +424,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/spam'),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body)['data'] ?? [],
+      onSuccess: (body) => (jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>? ?? [],
     );
   }
 
@@ -479,7 +481,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body) as List<dynamic>,
+      onSuccess: (body) => jsonDecode(body as String) as List<dynamic>,
     );
   }
 

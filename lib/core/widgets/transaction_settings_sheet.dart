@@ -1,36 +1,36 @@
 import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:open_filex/open_filex.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/category_picker.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/models/dashboard_data.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:mobile_app/core/widgets/category_picker.dart';
-import 'package:mobile_app/modules/vault/services/vault_service.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:mobile_app/modules/vault/services/vault_service.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:provider/provider.dart';
 
 class TransactionSettingsSheet extends StatefulWidget {
-  final RecentTransaction transaction;
-  final bool isTriage;
-  final Function(bool isTransfer, bool excludeFromReports)? onSaved;
 
   const TransactionSettingsSheet({
-    super.key,
-    required this.transaction,
+    required this.transaction, super.key,
     this.isTriage = false,
     this.onSaved,
   });
+  final RecentTransaction transaction;
+  final bool isTriage;
+  final void Function(bool isTransfer, bool excludeFromReports)? onSaved;
 
   static Future<dynamic> show(
     BuildContext context,
     RecentTransaction transaction, {
     bool isTriage = false,
-    Function(bool isTransfer, bool excludeFromReports)? onSaved,
+    void Function(bool isTransfer, bool excludeFromReports)? onSaved,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -90,10 +90,10 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
         headers: {'Authorization': 'Bearer ${auth.accessToken}'},
       );
       if (response.statusCode == 200) {
-        setState(() => _accounts = jsonDecode(response.body));
+        setState(() => _accounts = jsonDecode(response.body) as List<dynamic>);
       }
     } catch (e) {
-      debugPrint("Error fetching accounts: $e");
+      debugPrint('Error fetching accounts: $e');
     }
   }
 
@@ -124,10 +124,10 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
       );
 
       if (response.statusCode == 200) {
-        setState(() => _matches = jsonDecode(response.body));
+        setState(() => _matches = jsonDecode(response.body) as List<dynamic>);
       }
     } catch (e) {
-      debugPrint("Error fetching matches: $e");
+      debugPrint('Error fetching matches: $e');
     } finally {
       if (mounted) setState(() => _isLoadingMatches = false);
     }
@@ -149,12 +149,12 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
       final folders = await vault.getFolders();
 
       final controller = TextEditingController(text: file.name);
-      String selectedType = "INVOICE";
+      String selectedType = 'INVOICE';
       String?
       selectedFolderId; // Null means ROOT or we find/create Bills by default
 
       try {
-        selectedFolderId = folders.firstWhere((f) => f.filename == "Bills").id;
+        selectedFolderId = folders.firstWhere((f) => f.filename == 'Bills').id;
       } catch (_) {
         // Bills folder doesn't exist yet, it'll be created if they stick with default
       }
@@ -217,7 +217,6 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                     ),
                     items: [
                       const DropdownMenuItem(
-                        value: null,
                         child: Text('Root Vault (or create Bills)'),
                       ),
                       ...folders
@@ -255,11 +254,11 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
 
       if (uploadData == null) return;
       final fileName = uploadData['name'] ?? file.name;
-      final fileType = uploadData['type'] ?? "INVOICE";
+      final fileType = uploadData['type'] ?? 'INVOICE';
 
       // Step 2: Proceed with upload
       if (!mounted) return;
-      showDialog(
+      showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
@@ -267,14 +266,14 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
 
       try {
         // 1. Get or create target folder
-        String? targetFolderId = uploadData['folderId'];
-        targetFolderId ??= await vault.getOrCreateFolderByName("Bills");
+        String? targetFolderId = uploadData['folderId'] as String?;
+        targetFolderId ??= await vault.getOrCreateFolderByName('Bills');
 
         // 2. Upload and link
         final uploadResult = await vault.uploadDocument(
           filePath: file.path!,
-          fileName: fileName,
-          fileType: fileType,
+          fileName: fileName as String,
+          fileType: fileType as String,
           transactionId: widget.transaction.id,
           parentId: targetFolderId,
         );
@@ -517,10 +516,11 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                   _excludeFromReports = true;
                   if (_accounts.isNotEmpty && _targetAccountId == null) {
                     // Pre-select first different account if possible
-                    _targetAccountId = _accounts.firstWhere(
-                      (a) => a['id'] != widget.transaction.accountId,
+                    final dynamic firstDiff = _accounts.firstWhere(
+                      (a) => (a as Map)['id'] != widget.transaction.accountId,
                       orElse: () => null,
-                    )?['id'];
+                    );
+                    _targetAccountId = (firstDiff as Map?)?['id'] as String?;
                     _fetchMatches();
                   }
                 }
@@ -562,7 +562,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                     items: _accounts
                         .map(
                           (a) => DropdownMenuItem(
-                            value: a['id'] as String,
+                            value: (a as Map)['id'] as String,
                             child: Text(a['name'] as String),
                           ),
                         )
@@ -599,7 +599,8 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    ..._matches.map((m) {
+                    ..._matches.map((mRaw) {
+                      final m = mRaw as Map<String, dynamic>;
                       final isSelected = _linkedTransactionId == m['id'];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -607,7 +608,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                           onTap: () => setState(
                             () => _linkedTransactionId = isSelected
                                 ? null
-                                : m['id'],
+                                : m['id'] as String?,
                           ),
                           child: Container(
                             padding: const EdgeInsets.all(12),
@@ -642,14 +643,14 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        m['description'],
+                                        m['description'] as String? ?? 'N/A',
                                         style: const TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text(
-                                        '${m['account_name']} • ${m['amount']}',
+                                        '${m['account_name'] ?? 'N/A'} • ${m['amount'] ?? 'N/A'}',
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey.withValues(
@@ -683,15 +684,15 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                         color: Colors.orange.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.info_outline,
                             size: 16,
                             color: Colors.orange,
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
+                          SizedBox(width: 12),
+                          Expanded(
                             child: Text(
                               'No matching transactions found in destination account. Saving will create a new linked transaction.',
                               style: TextStyle(
@@ -848,7 +849,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
                                   Navigator.pop(context);
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
+                                    MaterialPageRoute<void>(
                                       builder: (_) => VaultScreen(
                                         initialFolderId: doc.parentId ?? 'ROOT',
                                       ),

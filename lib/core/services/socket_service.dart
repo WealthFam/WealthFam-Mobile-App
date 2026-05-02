@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:mobile_app/core/config/app_config.dart';
-import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/core/services/notification_service.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/core/utils/logger.dart';
+import 'package:mobile_app/modules/auth/services/auth_service.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class SocketService extends ChangeNotifier {
+
+  SocketService(this._config, this._auth, this._notifications, this._dashboard);
   final AppConfig _config;
   final AuthService _auth;
   final NotificationService _notifications;
@@ -20,8 +23,6 @@ class SocketService extends ChangeNotifier {
   int _reconnectAttempts = 0;
 
   bool get isConnected => _isConnected;
-
-  SocketService(this._config, this._auth, this._notifications, this._dashboard);
 
   void connect() {
     if (_isConnected || _auth.accessToken == null || _auth.tenantId == null) {
@@ -88,7 +89,7 @@ class SocketService extends ChangeNotifier {
           notifyListeners();
           _scheduleReconnect();
         },
-        onError: (error) {
+        onError: (Object error) {
           AppLogger.error('SocketService: WebSocket error', error);
           _isConnected = false;
           notifyListeners();
@@ -103,13 +104,13 @@ class SocketService extends ChangeNotifier {
 
   void _handleMessage(dynamic message) {
     try {
-      final data = jsonDecode(message);
+      final data = jsonDecode(message as String) as Map<String, dynamic>;
       AppLogger.debug('SocketService: Message: $data');
 
       if (data['type'] == 'NOTIFICATION') {
-        final payload = data['payload'];
-        final title = payload['title'] ?? 'WealthFam Alert';
-        final body = payload['body'] ?? '';
+        final payload = data['payload'] as Map<String, dynamic>;
+        final title = payload['title'] as String? ?? 'WealthFam Alert';
+        final body = payload['body'] as String? ?? '';
 
         // Safely parse ID which might be a string from backend
         final rawId = payload['id'];
@@ -120,9 +121,9 @@ class SocketService extends ChangeNotifier {
 
         // Show local notification
         _notifications.showNotification(
-          title: title,
-          body: body,
-          id: notificationId,
+          notificationId,
+          title,
+          body,
         );
 
         // Refresh dashboard to reflect changes if it was a transaction/budget update

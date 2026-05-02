@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
 import 'package:provider/provider.dart';
 import 'package:telephony/telephony.dart';
-import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/ingestion/services/sms_service.dart';
-import 'package:mobile_app/core/widgets/app_shell.dart';
-import 'package:intl/intl.dart';
 
 class SmsManagementScreen extends StatefulWidget {
   const SmsManagementScreen({super.key});
@@ -212,22 +212,22 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
     final address = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Deep Search Address"),
+        title: const Text('Deep Search Address'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            labelText: "Enter Sender Address / Number",
+            labelText: 'Enter Sender Address / Number',
           ),
           style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text("Search"),
+            child: const Text('Search'),
           ),
         ],
       ),
@@ -247,7 +247,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
         });
         messenger.showSnackBar(
           SnackBar(
-            content: Text("Found ${msgs.length} messages from $address"),
+            content: Text('Found ${msgs.length} messages from $address'),
           ),
         );
       }
@@ -292,7 +292,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       fontSize: 16,
                     ),
                     decoration: InputDecoration(
-                      hintText: "Search SMS...",
+                      hintText: 'Search SMS...',
                       hintStyle: TextStyle(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -372,18 +372,18 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       bool? confirm = await showDialog<bool>(
                         context: context,
                         builder: (c) => AlertDialog(
-                          title: const Text("Bulk Push"),
+                          title: const Text('Bulk Push'),
                           content: Text(
-                            "Push ${_selectedHashes.length} selected messages to the server?",
+                            'Push ${_selectedHashes.length} selected messages to the server?',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(c, false),
-                              child: const Text("Cancel"),
+                              child: const Text('Cancel'),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(c, true),
-                              child: const Text("Proceed"),
+                              child: const Text('Proceed'),
                             ),
                           ],
                         ),
@@ -394,7 +394,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       }
                     },
               icon: const Icon(Icons.cloud_upload),
-              label: Text("Push (${_selectedHashes.length})"),
+              label: Text('Push (${_selectedHashes.length})'),
               backgroundColor: theme.primaryColor,
               foregroundColor: theme.colorScheme.onPrimary,
             )
@@ -428,18 +428,18 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       bool? confirm = await showDialog<bool>(
                         context: context,
                         builder: (c) => AlertDialog(
-                          title: const Text("Sync from Date"),
+                          title: const Text('Sync from Date'),
                           content: const Text(
-                            "This will search and potentially re-sync messages from a chosen date. Proceed?",
+                            'This will search and potentially re-sync messages from a chosen date. Proceed?',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(c, false),
-                              child: const Text("Cancel"),
+                              child: const Text('Cancel'),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(c, true),
-                              child: const Text("Proceed"),
+                              child: const Text('Proceed'),
                             ),
                           ],
                         ),
@@ -451,7 +451,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                     },
             ),
             IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Icons.cleaning_services_outlined,
                 color: AppTheme.danger,
               ),
@@ -462,19 +462,19 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       bool? confirm = await showDialog<bool>(
                         context: context,
                         builder: (c) => AlertDialog(
-                          title: const Text("Force Push All"),
+                          title: const Text('Force Push All'),
                           content: const Text(
-                            "This will clear the local SMS sync cache and push ALL messages in your inbox to the server. This may take a while and cause duplicate notifications. Proceed?",
+                            'This will clear the local SMS sync cache and push ALL messages in your inbox to the server. This may take a while and cause duplicate notifications. Proceed?',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(c, false),
-                              child: const Text("Cancel"),
+                              child: const Text('Cancel'),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(c, true),
                               child: const Text(
-                                "Proceed",
+                                'Proceed',
                                 style: TextStyle(color: Colors.red),
                               ),
                             ),
@@ -522,18 +522,18 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       bool? confirm = await showDialog<bool>(
                         context: context,
                         builder: (c) => AlertDialog(
-                          title: const Text("Push All Unsynced"),
+                          title: const Text('Push All Unsynced'),
                           content: const Text(
-                            "This will send all currently unsynced messages to the backend. Proceed?",
+                            'This will send all currently unsynced messages to the backend. Proceed?',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(c, false),
-                              child: const Text("Cancel"),
+                              child: const Text('Cancel'),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(c, true),
-                              child: const Text("Proceed"),
+                              child: const Text('Proceed'),
                             ),
                           ],
                         ),
@@ -623,14 +623,14 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                   ),
                 ),
                 if (isSynced)
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.cloud_done,
                         color: AppTheme.success,
                         size: 16,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         'Synced',
                         style: TextStyle(
@@ -642,14 +642,14 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                     ],
                   )
                 else if (smsService.isInOfflineQueue(hash))
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.timer_outlined,
                         color: AppTheme.primary,
                         size: 16,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         'Queued',
                         style: TextStyle(
@@ -661,14 +661,14 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                     ],
                   )
                 else
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.cloud_off,
                         color: AppTheme.warning,
                         size: 16,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         'Pending',
                         style: TextStyle(
@@ -691,7 +691,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              "Hash: ${hash.substring(0, 8)}...",
+              'Hash: ${hash.substring(0, 8)}...',
               style: TextStyle(
                 color: theme.colorScheme.onSurfaceVariant.withValues(
                   alpha: 0.5,
@@ -709,6 +709,8 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                     (metadata['lat'] == null && metadata['lng'] == null)) {
                   return const SizedBox.shrink();
                 }
+                final lat = metadata['lat'] as num?;
+                final lng = metadata['lng'] as num?;
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Row(
@@ -720,7 +722,7 @@ class _SmsManagementScreenState extends State<SmsManagementScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${metadata['lat']?.toStringAsFixed(6)}, ${metadata['lng']?.toStringAsFixed(6)}',
+                        '${lat?.toStringAsFixed(6)}, ${lng?.toStringAsFixed(6)}',
                         style: TextStyle(
                           fontSize: 10,
                           color: theme.primaryColor,

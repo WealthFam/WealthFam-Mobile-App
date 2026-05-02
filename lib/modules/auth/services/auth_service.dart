@@ -10,6 +10,8 @@ import 'package:mobile_app/core/config/app_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService extends ChangeNotifier {
+
+  AuthService(this._config);
   final AppConfig _config;
   final _storage = const FlutterSecureStorage();
 
@@ -22,17 +24,17 @@ class AuthService extends ChangeNotifier {
   String? _userName;
   String? _userAvatar;
   bool _isApproved = false;
+  bool _hasCompletedOnboarding = false;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isApproved => _isApproved;
+  bool get hasCompletedOnboarding => _hasCompletedOnboarding;
   String? get accessToken => _accessToken;
   String? get deviceId => _deviceId;
   String? get userRole => _userRole;
   String? get userName => _userName;
   String? get userAvatar => _userAvatar;
   String? get tenantId => _tenantId;
-
-  AuthService(this._config);
 
   Future<void> init() async {
     _accessToken = await _storage.read(key: 'access_token');
@@ -56,7 +58,11 @@ class AuthService extends ChangeNotifier {
         debugPrint('Offline or Check Status Failed: $e');
       }
     }
+    final prefs = await SharedPreferences.getInstance();
+    _hasCompletedOnboarding = prefs.getBool('has_completed_onboarding') ?? false;
+
     notifyListeners();
+
   }
 
   Future<void> _initDeviceInfo() async {
@@ -115,19 +121,20 @@ class AuthService extends ChangeNotifier {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _accessToken = data['access_token'];
-        _isApproved = data['device_status']['is_approved'];
-        _tenantId = data['device_status']['tenant_id'];
-        _userRole = data['user_role'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _accessToken = data['access_token'] as String?;
+        final deviceStatus = data['device_status'] as Map<String, dynamic>;
+        _isApproved = deviceStatus['is_approved'] as bool? ?? false;
+        _tenantId = deviceStatus['tenant_id'] as String?;
+        _userRole = data['user_role'] as String?;
 
         await _storage.write(key: 'access_token', value: _accessToken);
         await _storage.write(key: 'tenant_id', value: _tenantId);
         if (_userRole != null) {
           await _storage.write(key: 'user_role', value: _userRole);
         }
-        _userName = data['user_name'];
-        _userAvatar = data['user_avatar'];
+        _userName = data['user_name'] as String?;
+        _userAvatar = data['user_avatar'] as String?;
         if (_userName != null) {
           await _storage.write(key: 'user_name', value: _userName);
         }
@@ -200,10 +207,10 @@ class AuthService extends ChangeNotifier {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _isApproved = data['is_approved'];
-        _userName = data['user_name'];
-        _userAvatar = data['user_avatar'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _isApproved = data['is_approved'] as bool? ?? false;
+        _userName = data['user_name'] as String?;
+        _userAvatar = data['user_avatar'] as String?;
         if (_userName != null) {
           await _storage.write(key: 'user_name', value: _userName);
         }
@@ -255,9 +262,10 @@ class AuthService extends ChangeNotifier {
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (_isApproved != data['is_approved']) {
-          _isApproved = data['is_approved'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final bool newApproved = data['is_approved'] as bool? ?? false;
+        if (_isApproved != newApproved) {
+          _isApproved = newApproved;
           notifyListeners();
         }
       }
@@ -265,4 +273,11 @@ class AuthService extends ChangeNotifier {
       debugPrint('Heartbeat failed: $e');
     }
   }
+  Future<void> completeOnboarding() async {
+    _hasCompletedOnboarding = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_completed_onboarding', true);
+    notifyListeners();
+  }
 }
+

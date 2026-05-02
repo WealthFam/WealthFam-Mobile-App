@@ -1,16 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/goals_service.dart';
+import 'package:provider/provider.dart';
 
 class InvestmentGoalDetailsScreen extends StatefulWidget {
-  final dynamic goal;
-  const InvestmentGoalDetailsScreen({super.key, required this.goal});
+  const InvestmentGoalDetailsScreen({required this.goal, super.key});
+  final Map<String, dynamic> goal;
 
   @override
   State<InvestmentGoalDetailsScreen> createState() =>
@@ -19,7 +20,7 @@ class InvestmentGoalDetailsScreen extends StatefulWidget {
 
 class _InvestmentGoalDetailsScreenState
     extends State<InvestmentGoalDetailsScreen> {
-  late dynamic _goal;
+  late Map<String, dynamic> _goal;
   bool _isLoading = true;
 
   @override
@@ -47,7 +48,7 @@ class _InvestmentGoalDetailsScreenState
       if (response.statusCode == 200) {
         if (mounted) {
           setState(() {
-            _goal = jsonDecode(response.body);
+            _goal = jsonDecode(response.body) as Map<String, dynamic>;
             _isLoading = false;
           });
         }
@@ -76,7 +77,7 @@ class _InvestmentGoalDetailsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_goal['name'] ?? 'Goal Details'),
+        title: Text(_goal['name'] as String? ?? 'Goal Details'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -121,7 +122,7 @@ class _InvestmentGoalDetailsScreenState
                         ),
                       ],
                     ),
-                    ...holdings.map((h) => _buildHoldingTile(h, currency)),
+                    ...holdings.map((h) => _buildHoldingTile(h as Map<String, dynamic>, currency)),
                     const SizedBox(height: 16),
                   ],
                   if (assets.isNotEmpty) ...[
@@ -129,7 +130,7 @@ class _InvestmentGoalDetailsScreenState
                       'Linked Bank Accounts & Assets',
                       AppTheme.success,
                     ),
-                    ...assets.map((a) => _buildAssetTile(a, currency)),
+                    ...assets.map((a) => _buildAssetTile(a as Map<String, dynamic>, currency)),
                     const SizedBox(height: 16),
                   ],
                   if (holdings.isEmpty && assets.isEmpty)
@@ -302,7 +303,7 @@ class _InvestmentGoalDetailsScreenState
     );
   }
 
-  Widget _buildHoldingTile(dynamic h, String currency) {
+  Widget _buildHoldingTile(Map<String, dynamic> h, String currency) {
     final val = double.tryParse(h['current_value']?.toString() ?? '0') ?? 0.0;
     final maskingFactor = context.read<DashboardService>().maskingFactor;
 
@@ -311,7 +312,7 @@ class _InvestmentGoalDetailsScreenState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         onLongPress: () =>
-            _showUnlinkConfirm(h['scheme_name'], h['id'].toString()),
+            _showUnlinkConfirm(h['scheme_name'] as String? ?? 'Scheme', h['id'].toString()),
         leading: CircleAvatar(
           backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
           child: const Icon(
@@ -321,11 +322,11 @@ class _InvestmentGoalDetailsScreenState
           ),
         ),
         title: Text(
-          h['scheme_name'] ?? 'Scheme',
+          h['scheme_name'] as String? ?? 'Scheme',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
-          'Folio: ${h['folio_number'] ?? 'N/A'}',
+          'Folio: ${h['folio_number'] as String? ?? 'N/A'}',
           style: const TextStyle(fontSize: 12),
         ),
         trailing: Text(
@@ -339,7 +340,7 @@ class _InvestmentGoalDetailsScreenState
     );
   }
 
-  Widget _buildAssetTile(dynamic a, String currency) {
+  Widget _buildAssetTile(Map<String, dynamic> a, String currency) {
     final val = double.tryParse(a['current_value']?.toString() ?? '0') ?? 0.0;
     final maskingFactor = context.read<DashboardService>().maskingFactor;
 
@@ -355,7 +356,7 @@ class _InvestmentGoalDetailsScreenState
           child: Icon(icon, color: AppTheme.success, size: 20),
         ),
         title: Text(
-          a['display_name'] ?? a['name'] ?? 'Asset',
+          (a['display_name'] ?? a['name']) as String? ?? 'Asset',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
@@ -374,12 +375,12 @@ class _InvestmentGoalDetailsScreenState
   }
 
   void _showDeleteConfirm(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Goal?'),
         content: Text(
-          'Are you sure you want to delete "${_goal['name']}"? Linked holdings will be unlinked but not deleted.',
+          'Are you sure you want to delete "${_goal['name'] as String? ?? 'Unnamed'}"? Linked holdings will be unlinked but not deleted.',
         ),
         actions: [
           TextButton(
@@ -405,15 +406,15 @@ class _InvestmentGoalDetailsScreenState
   }
 
   void _showEditGoalDialog(BuildContext context) {
-    final nameController = TextEditingController(text: _goal['name']);
+    final nameController = TextEditingController(text: _goal['name'] as String?);
     final targetController = TextEditingController(
       text: _goal['target_amount'].toString(),
     );
     final descriptionController = TextEditingController(
-      text: _goal['description'],
+      text: _goal['description'] as String?,
     );
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Goal'),
@@ -464,7 +465,7 @@ class _InvestmentGoalDetailsScreenState
   }
 
   void _showUnlinkConfirm(String name, String holdingId) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unlink Holding?'),
@@ -513,20 +514,23 @@ class _InvestmentGoalDetailsScreenState
 
     if (response.statusCode != 200) return;
 
-    final data = jsonDecode(response.body);
-    final List<dynamic> portfolio = data['holdings'] ?? [];
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final portfolio = data['holdings'] as List<dynamic>? ?? [];
 
     // Filter out already linked to this goal
     final linkedIds = (_goal['holdings'] as List)
-        .map((h) => h['id'].toString())
+        .map((hRaw) => (hRaw as Map<String, dynamic>)['id'].toString())
         .toSet();
     final available = portfolio
-        .where((h) => !linkedIds.contains(h['scheme_code'].toString()))
+        .where((hRaw) {
+          final h = hRaw as Map<String, dynamic>;
+          return !linkedIds.contains(h['scheme_code'].toString());
+        })
         .toList();
 
     if (!mounted) return;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Link Mutual Fund'),
@@ -540,7 +544,7 @@ class _InvestmentGoalDetailsScreenState
                   shrinkWrap: true,
                   itemCount: available.length,
                   itemBuilder: (context, index) {
-                    final h = available[index];
+                    final h = available[index] as Map<String, dynamic>;
                     final double val =
                         double.tryParse(
                           h['current_value']?.toString() ?? '0',
@@ -554,7 +558,7 @@ class _InvestmentGoalDetailsScreenState
                         .currencySymbol;
 
                     return ListTile(
-                      title: Text(h['scheme_name'] ?? 'Unknown Fund'),
+                      title: Text(h['scheme_name'] as String? ?? 'Unknown Fund'),
                       subtitle: Text(
                         'Current Value: $currency${(val / maskingFactor).toStringAsFixed(0)}',
                       ),
@@ -568,7 +572,7 @@ class _InvestmentGoalDetailsScreenState
                             'Content-Type': 'application/json',
                           },
                           body: jsonEncode({
-                            'holding_id': h['scheme_code'].toString(),
+                            'holding_id': (h['scheme_code'] ?? h['id'])?.toString(),
                           }),
                         );
                         if (!context.mounted) return;

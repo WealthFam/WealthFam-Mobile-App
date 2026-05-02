@@ -15,15 +15,6 @@ double _toDouble(dynamic value) {
 }
 
 class FundHolding {
-  final String schemeCode;
-  final String schemeName;
-  final double units;
-  final Decimal currentValue;
-  final Decimal investedValue;
-  final Decimal profitLoss;
-  final Decimal dayChange;
-  final Decimal dayChangePercentage;
-  final String lastUpdated;
 
   FundHolding({
     required this.schemeCode,
@@ -39,17 +30,26 @@ class FundHolding {
 
   factory FundHolding.fromJson(Map<String, dynamic> json) {
     return FundHolding(
-      schemeCode: json['scheme_code'],
-      schemeName: json['scheme_name'],
+      schemeCode: json['scheme_code'] as String,
+      schemeName: json['scheme_name'] as String,
       units: _toDouble(json['units']),
       currentValue: _toDecimal(json['current_value']),
       investedValue: _toDecimal(json['invested_value']),
       profitLoss: _toDecimal(json['profit_loss']),
-      lastUpdated: json['last_updated'] ?? '',
+      lastUpdated: json['last_updated'] as String? ?? '',
       dayChange: _toDecimal(json['day_change']),
       dayChangePercentage: _toDecimal(json['day_change_percentage']),
     );
   }
+  final String schemeCode;
+  final String schemeName;
+  final double units;
+  final Decimal currentValue;
+  final Decimal investedValue;
+  final Decimal profitLoss;
+  final Decimal dayChange;
+  final Decimal dayChangePercentage;
+  final String lastUpdated;
 
   Map<String, dynamic> toJson() {
     return {
@@ -67,12 +67,6 @@ class FundHolding {
 }
 
 class PortfolioSummary {
-  final Decimal totalInvested;
-  final Decimal totalCurrent;
-  final Decimal totalPl;
-  final Decimal dayChange;
-  final Decimal dayChangePercentage;
-  final List<FundHolding> holdings;
 
   PortfolioSummary({
     required this.totalInvested,
@@ -90,11 +84,18 @@ class PortfolioSummary {
       totalPl: _toDecimal(json['total_pl']),
       dayChange: _toDecimal(json['day_change']),
       dayChangePercentage: _toDecimal(json['day_change_percentage']),
-      holdings: (json['holdings'] as List)
-          .map((i) => FundHolding.fromJson(i))
-          .toList(),
+      holdings:
+          (json['holdings'] as List)
+              .map((i) => FundHolding.fromJson(i as Map<String, dynamic>))
+              .toList(),
     );
   }
+  final Decimal totalInvested;
+  final Decimal totalCurrent;
+  final Decimal totalPl;
+  final Decimal dayChange;
+  final Decimal dayChangePercentage;
+  final List<FundHolding> holdings;
 
   Map<String, dynamic> toJson() {
     return {

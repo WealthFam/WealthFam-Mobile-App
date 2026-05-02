@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
-import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:provider/provider.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});
@@ -56,14 +57,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       if (response.statusCode == 200) {
         setState(() {
-          _accounts = jsonDecode(response.body);
+          _accounts = jsonDecode(response.body) as List<dynamic>;
           if (_accounts.isNotEmpty) {
-            _selectedAccountId = _accounts[0]['id'];
+            final firstAcc = _accounts[0] as Map<String, dynamic>;
+            _selectedAccountId = firstAcc['id'] as String?;
           }
         });
       }
     } catch (e) {
-      debugPrint("Error fetching accounts: $e");
+      debugPrint('Error fetching accounts: $e');
     }
   }
 
@@ -124,7 +126,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Transaction"), elevation: 0),
+      appBar: AppBar(title: const Text('Add Transaction'), elevation: 0),
       body: _accounts.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -136,7 +138,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     children: [
                       Expanded(
                         child: ChoiceChip(
-                          label: const Center(child: Text("Expense")),
+                          label: const Center(child: Text('Expense')),
                           selected: _isExpense,
                           selectedColor: AppTheme.danger.withValues(alpha: 0.2),
                           labelStyle: TextStyle(
@@ -150,7 +152,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ChoiceChip(
-                          label: const Center(child: Text("Income")),
+                          label: const Center(child: Text('Income')),
                           selected: !_isExpense,
                           selectedColor: AppTheme.success.withValues(
                             alpha: 0.2,
@@ -169,10 +171,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: _selectedAccountId,
                     decoration: const InputDecoration(labelText: 'Account'),
-                    items: _accounts.map<DropdownMenuItem<String>>((acc) {
+                    items: _accounts.map<DropdownMenuItem<String>>((accRaw) {
+                      final acc = accRaw as Map<String, dynamic>;
                       return DropdownMenuItem(
-                        value: acc['id'],
-                        child: Text(acc['name']),
+                        value: acc['id'] as String?,
+                        child: Text((acc['name'] as String?) ?? 'Account'),
                       );
                     }).toList(),
                     onChanged: (v) => setState(() => _selectedAccountId = v),

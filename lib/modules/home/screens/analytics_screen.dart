@@ -1,28 +1,30 @@
 import 'dart:convert';
+
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
+import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/models/dashboard_data.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:decimal/decimal.dart';
-import 'package:mobile_app/core/widgets/app_shell.dart';
-import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
-import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
 import 'package:mobile_app/modules/home/screens/add_transaction_screen.dart';
-import 'package:mobile_app/modules/home/screens/spending_heatmap_widget.dart';
 import 'package:mobile_app/modules/home/screens/calendar_heatmap_widget.dart';
+import 'package:mobile_app/modules/home/screens/spending_heatmap_widget.dart';
+import 'package:mobile_app/modules/home/screens/transaction_detail_screen.dart';
+import 'package:mobile_app/modules/home/services/categories_service.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/modules/home/widgets/analytics_charts.dart';
+import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AnalyticsScreen extends StatefulWidget {
-  final bool showTodayOnly;
   const AnalyticsScreen({super.key, this.showTodayOnly = false});
+  final bool showTodayOnly;
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
@@ -86,12 +88,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (cached != null && mounted) {
         setState(() {
           _transactions.clear();
-          _transactions.addAll(jsonDecode(cached));
+          final decoded = jsonDecode(cached) as List<dynamic>;
+          _transactions.addAll(decoded);
           _hasMore = true; // Assume there's more until we fetch
         });
       }
     } catch (e) {
-      debugPrint("Error loading txn cache: $e");
+      debugPrint('Error loading txn cache: $e');
     }
   }
 
@@ -104,7 +107,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         await prefs.setString(_cacheKey, jsonEncode(toCache));
       }
     } catch (e) {
-      debugPrint("Error saving txn cache: $e");
+      debugPrint('Error saving txn cache: $e');
     }
   }
 
@@ -152,14 +155,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List items = data['data'] ?? [];
-        final nextPage = data['next_page'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = data['data'] as List<dynamic>? ?? [];
+        final dynamic nextPage = data['next_page'];
 
         if (mounted) {
           setState(() {
             if (reset) _transactions.clear();
-            _transactions.addAll(items.where((i) => i['is_hidden'] != true));
+            _transactions.addAll(
+              items.where((i) {
+                final item = i as Map<String, dynamic>;
+                return item['is_hidden'] != true;
+              }),
+            );
             _hasMore = nextPage != null;
             _page++;
           });
@@ -167,7 +175,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         }
       }
     } catch (e) {
-      debugPrint("Error fetching analytics transactions: $e");
+      debugPrint('Error fetching analytics transactions: $e');
     } finally {
       if (mounted) {
         setState(() => _isTxnLoading = false);
@@ -215,12 +223,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
                 const PopupMenuDivider(),
                 ...dashboard.members.map(
-                  (m) => PopupMenuItem(
-                    value: m['id'].toString(),
-                    child: Text(
-                      '${m['role'] == "CHILD" ? "👶" : "👤"} ${m['name']}',
-                    ),
-                  ),
+                  (mRaw) {
+                    final m = mRaw as Map<String, dynamic>;
+                    return PopupMenuItem(
+                      value: m['id'].toString(),
+                      child: Text(
+                        '${m['role'] == "CHILD" ? "👶" : "👤"} ${m['name']}',
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -257,7 +268,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         children: [
                           _buildPremiumHeader(context, dashboard, formatAmount),
                           const SizedBox(height: 12),
-                          _buildSmartInsight(context, dashboard.data!),
+                          SmartInsightWidget(data: dashboard.data!),
                           const SizedBox(height: 24),
                           _buildSectionTitle(context, 'Spending Trend'),
                           const SizedBox(height: 12),
@@ -274,10 +285,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 ),
                               );
                             },
-                            child: _buildMonthTrendChart(
-                              context,
-                              dashboard.data!.monthWiseTrend,
-                              dashboard.maskingFactor,
+                            child: MonthTrendChart(
+                              trend: dashboard.data!.monthWiseTrend,
+                              maskingFactor: dashboard.maskingFactor,
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -319,18 +329,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             'Daily Activity (This Month)',
                           ),
                           const SizedBox(height: 12),
-                          _buildDailyTrendChart(
-                            context,
-                            dashboard.data!.spendingTrend,
-                            dashboard.maskingFactor,
+                          DailyTrendLineChart(
+                            trend: dashboard.data!.spendingTrend,
+                            maskingFactor: dashboard.maskingFactor,
                           ),
                           const SizedBox(height: 32),
                           _buildSectionTitle(context, 'Category Breakdown'),
                           const SizedBox(height: 12),
-                          _buildCategoryPieChart(
-                            context,
-                            dashboard.data!.categoryDistribution,
-                            formatAmount,
+                          CategorySpendingPieChart(
+                            distribution: dashboard.data!.categoryDistribution,
+                            formatAmount: formatAmount,
                           ),
                           const SizedBox(height: 32),
                           Row(
@@ -372,7 +380,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         padding: EdgeInsets.symmetric(vertical: 40),
                         child: Center(
                           child: Text(
-                            "No transactions found for this period",
+                            'No transactions found for this period',
                             style: TextStyle(color: Colors.grey, fontSize: 13),
                           ),
                         ),
@@ -386,7 +394,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ] else ...[
                   const SliverFillRemaining(
                     child: Center(
-                      child: Text("No transactions found for this period"),
+                      child: Text('No transactions found for this period'),
                     ),
                   ),
                 ],
@@ -418,7 +426,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           CircularProgressIndicator(),
                           SizedBox(height: 12),
                           Text(
-                            "Fetching latest data...",
+                            'Fetching latest data...',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -442,10 +450,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     String memberName = 'Full Family';
     if (dashboard.selectedMemberId != null) {
       final member = dashboard.members.firstWhere(
-        (m) => m['id'].toString() == dashboard.selectedMemberId,
+        (mRaw) {
+          final m = mRaw as Map<String, dynamic>;
+          return m['id'].toString() == dashboard.selectedMemberId;
+        },
         orElse: () => null,
-      );
-      if (member != null) memberName = member['name'];
+      ) as Map<String, dynamic>?;
+      if (member != null) memberName = member['name'] as String? ?? 'Member';
     }
 
     return Container(
@@ -507,7 +518,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildPremiumHeader(
     BuildContext context,
     DashboardService dashboard,
-    Function(Decimal) format,
+    String Function(Decimal) format,
   ) {
     if (dashboard.data == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
@@ -605,7 +616,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 16),
                   Text(
                     '$currency${NumberFormat.decimalPattern().format(summary.todayTotal.toDouble() / maskingFactor)}',
                     style: TextStyle(
@@ -666,7 +677,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     'vs Yesterday',
                     yesterdayDiff,
                     maskingFactor,
-                    isPositiveBad: true,
                   ),
                 ),
                 VerticalDivider(
@@ -680,7 +690,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     'vs Last Month Same Day',
                     lastMonthDiff,
                     maskingFactor,
-                    isPositiveBad: true,
                   ),
                 ),
               ],
@@ -695,9 +704,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     BuildContext context,
     String label,
     Decimal diff,
-    double maskingFactor, {
-    bool isPositiveBad = true,
-  }) {
+    double maskingFactor) {
     final isNegative = diff < Decimal.zero;
     final color = isNegative
         ? AppTheme.success
@@ -821,477 +828,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildSmartInsight(BuildContext context, DashboardData data) {
-    // Generate a simple insight based on data
-    String insightText = "Your budget is looking healthy!";
-    IconData icon = Icons.auto_awesome;
-    Color color = AppTheme.success;
-
-    if (data.budget.percentage > Decimal.parse('100')) {
-      insightText = "Budget exceeded! Check spending.";
-      icon = Icons.warning_amber_rounded;
-      color = AppTheme.danger;
-    } else if (data.budget.percentage > Decimal.parse('80')) {
-      insightText = "Running close to budget. Slow down!";
-      icon = Icons.info_outline;
-      color = AppTheme.warning;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              insightText,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMonthTrendChart(
-    BuildContext context,
-    List<MonthTrendItem> trend,
-    double maskingFactor,
-  ) {
-    if (trend.isEmpty) {
-      return const SizedBox(
-        height: 150,
-        child: Center(child: Text("No Trend Data")),
-      );
-    }
-
-    double maxY = 0;
-    for (var m in trend) {
-      if (m.spent.toDouble() > maxY) maxY = m.spent.toDouble();
-      if (m.budget.toDouble() > maxY) maxY = m.budget.toDouble();
-    }
-    maxY = maxY * 1.2;
-
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-        ),
-      ),
-      child: BarChart(
-        BarChartData(
-          maxY: maxY,
-          barGroups: trend.asMap().entries.map((e) {
-            final isSelected = e.value.isSelected;
-
-            return BarChartGroupData(
-              x: e.key,
-              barRods: [
-                BarChartRodData(
-                  toY: e.value.spent.toDouble(),
-                  color: isSelected
-                      ? (e.value.spent > e.value.budget &&
-                                e.value.budget > Decimal.zero
-                            ? AppTheme.danger
-                            : Theme.of(context).colorScheme.secondary)
-                      : (e.value.spent > e.value.budget &&
-                                e.value.budget > Decimal.zero
-                            ? AppTheme.danger.withValues(alpha: 0.4)
-                            : AppTheme.primary.withValues(alpha: 0.4)),
-                  width: isSelected ? 18 : 14,
-                  borderRadius: BorderRadius.circular(6),
-                  backDrawRodData: BackgroundBarChartRodData(
-                    show: true,
-                    toY: e.value.budget > Decimal.zero
-                        ? e.value.budget.toDouble()
-                        : maxY * 0.8,
-                    color: isSelected
-                        ? Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.1)
-                        : Theme.of(
-                            context,
-                          ).dividerColor.withValues(alpha: 0.05),
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 45,
-                getTitlesWidget: (val, meta) => Text(
-                  NumberFormat.compact().format(val / maskingFactor),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (val, meta) {
-                  int idx = val.toInt();
-                  if (idx >= 0 && idx < trend.length) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        trend[idx].month.split(' ')[0],
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barTouchData: BarTouchData(
-            touchCallback: (FlTouchEvent event, barTouchResponse) {
-              if (!event.isInterestedForInteractions ||
-                  barTouchResponse == null ||
-                  barTouchResponse.spot == null) {
-                return;
-              }
-              final index = barTouchResponse.spot!.touchedBarGroupIndex;
-              if (index >= 0 && index < trend.length) {
-                final item = trend[index];
-                if (event is FlTapUpEvent) {
-                  try {
-                    // "MMM yyyy" format from backend: "Mar 2026"
-                    final date = DateFormat("MMM yyyy").parse(item.month);
-                    final dashboard = context.read<DashboardService>();
-                    dashboard.setMonth(date.month, date.year);
-                  } catch (e) {
-                    debugPrint("Error parsing month for tap: $e");
-                  }
-                }
-              }
-            },
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (group) => Theme.of(context).colorScheme.surface,
-              tooltipBorder: BorderSide(color: Theme.of(context).dividerColor),
-              tooltipPadding: const EdgeInsets.all(8),
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                return BarTooltipItem(
-                  '${trend[groupIndex].month}\n',
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  children: [
-                    TextSpan(
-                      text: NumberFormat.compact().format(
-                        rod.toY / maskingFactor,
-                      ),
-                      style: TextStyle(color: rod.color, fontSize: 10),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDailyTrendChart(
-    BuildContext context,
-    List<SpendingTrendItem> trend,
-    double maskingFactor,
-  ) {
-    if (trend.isEmpty) {
-      return const SizedBox(height: 150, child: Center(child: Text("No Data")));
-    }
-
-    double maxY = 0;
-    for (var item in trend) {
-      if (item.amount.toDouble() > maxY) maxY = item.amount.toDouble();
-    }
-    maxY = maxY * 1.2;
-
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-        ),
-      ),
-      child: LineChart(
-        LineChartData(
-          maxY: maxY,
-          minY: 0,
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (spot) => Theme.of(context).colorScheme.surface,
-              tooltipBorder: BorderSide(color: Theme.of(context).dividerColor),
-              getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                return touchedSpots.map((LineBarSpot touchedSpot) {
-                  final item = trend[touchedSpot.x.toInt()];
-                  final date = DateTime.parse(item.date).toLocal();
-                  return LineTooltipItem(
-                    '${DateFormat('MMM d').format(date)}\n',
-                    TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    children: [
-                      TextSpan(
-                        text:
-                            '₹${NumberFormat.compact().format(item.amount.toDouble() / maskingFactor)}',
-                        style: TextStyle(
-                          color: AppTheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList();
-              },
-            ),
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 45,
-                getTitlesWidget: (value, meta) {
-                  return Text(
-                    NumberFormat.compact().format(value.toDouble()),
-                    style: const TextStyle(
-                      fontSize: 9,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  int idx = value.toInt();
-                  if (idx >= 0 && idx < trend.length) {
-                    // Show labels for 1st, 10th, 20th and last day to avoid crowding
-                    DateTime date = DateTime.parse(trend[idx].date).toLocal();
-                    if (date.day == 1 ||
-                        date.day == 10 ||
-                        date.day == 20 ||
-                        idx == trend.length - 1) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          DateFormat('MMM d').format(date),
-                          style: const TextStyle(
-                            fontSize: 8,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            getDrawingHorizontalLine: (value) => FlLine(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-              strokeWidth: 1,
-            ),
-          ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: trend
-                  .asMap()
-                  .entries
-                  .map(
-                    (e) => FlSpot(e.key.toDouble(), e.value.amount.toDouble()),
-                  )
-                  .toList(),
-              isCurved: true,
-              color: AppTheme.primary,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primary.withValues(alpha: 0.3),
-                    AppTheme.primary.withValues(alpha: 0.0),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryPieChart(
-    BuildContext context,
-    List<CategoryPieItem> distribution,
-    Function(Decimal) format,
-  ) {
-    if (distribution.isEmpty) {
-      return const SizedBox(height: 150, child: Center(child: Text("No Data")));
-    }
-
-    final List<Color> colors = [
-      const Color(0xFF4F46E5),
-      const Color(0xFF10B981),
-      const Color(0xFFF59E0B),
-      const Color(0xFFEF4444),
-      const Color(0xFF8B5CF6),
-      const Color(0xFFEC4899),
-      const Color(0xFF0EA5E9),
-      const Color(0xFFF43F5E),
-    ];
-
-    final totalAmount = distribution.fold(
-      Decimal.zero,
-      (sum, i) => sum + i.value,
-    );
-    final totalVal = totalAmount.toDouble();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 180,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 4,
-                centerSpaceRadius: 50,
-                sections: distribution.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final item = entry.value;
-                  final percentage = totalVal > 0
-                      ? (item.value.toDouble() / totalVal * 100)
-                      : 0.0;
-                  return PieChartSectionData(
-                    color: colors[index % colors.length],
-                    value: item.value.toDouble(),
-                    title: '${percentage.toStringAsFixed(0)}%',
-                    titleStyle: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    radius: 50,
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ...distribution.take(5).toList().asMap().entries.map((e) {
-            final percentage = totalVal > 0
-                ? (e.value.value.toDouble() / totalVal * 100)
-                : 0.0;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: colors[e.key % colors.length],
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      e.value.name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    format(e.value.value),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${percentage.toStringAsFixed(1)}%',
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
 
   void _showMonthPicker(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1325,7 +864,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     final monthDate = DateTime(
                       DateTime.now().year,
                       DateTime.now().month - index,
-                      1,
                     );
                     final isSelected =
                         _dashboard?.selectedMonth == monthDate.month &&
@@ -1415,8 +953,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     // Grouping by date
     final Map<String, List<dynamic>> grouped = {};
-    for (var txn in _transactions) {
-      final date = DateTime.parse(txn['date']).toLocal();
+    for (var txnRaw in _transactions) {
+      final txn = txnRaw as Map<String, dynamic>;
+      final date = DateTime.parse(txn['date'] as String).toLocal();
       final key = DateFormat('yyyy-MM-dd').format(date);
       grouped.putIfAbsent(key, () => []).add(txn);
     }
@@ -1453,11 +992,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildTransactionItem(BuildContext context, dynamic txn) {
+  Widget _buildTransactionItem(BuildContext context, dynamic txnRaw) {
+    final txn = txnRaw as Map<String, dynamic>;
     final theme = Theme.of(context);
     final dashboard = context.read<DashboardService>();
     final amount = (txn['amount'] as num).toDouble();
-    final date = DateTime.parse(txn['date']).toLocal();
+    final date = DateTime.parse(txn['date'] as String).toLocal();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -1468,13 +1008,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        onTap: () => _showEditCategoryDialog(context, txn),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => TransactionDetailScreen(
+                transaction: RecentTransaction.fromJson(txn),
+              ),
+            ),
+          );
+        },
+        onLongPress: () {
+          TransactionSettingsSheet.show(
+            context,
+            RecentTransaction.fromJson(txn),
+          );
+        },
+
         leading: Consumer<CategoriesService>(
           builder: (context, catService, _) {
-            final catNameRaw = txn['category'] as String;
-            final catName = catNameRaw.contains(' › ')
-                ? catNameRaw.split(' › ').last
-                : catNameRaw;
+            final catNameRaw = txn['category'] as String? ?? 'Uncategorized';
+            final catName =
+                catNameRaw.contains(' › ')
+                    ? catNameRaw.split(' › ').last
+                    : catNameRaw;
             TransactionCategory? matched;
 
             for (var parent in catService.categories) {
@@ -1512,7 +1069,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           },
         ),
         title: Text(
-          txn['description'],
+          txn['description'] as String? ?? 'No Description',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
@@ -1549,9 +1106,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     // Navigate to Vault with search pre-filled
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            VaultScreen(initialSearch: txn['description']),
+                      MaterialPageRoute<void>(
+                        builder: (_) => VaultScreen(
+                          initialSearch: txn['description'] as String?,
+                        ),
                       ),
                     );
                   },
@@ -1568,32 +1126,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  void _showEditCategoryDialog(BuildContext context, dynamic txn) {
-    final amountDec = Decimal.parse(txn['amount'].toString());
-    final model = RecentTransaction(
-      id: txn['id'],
-      date: DateTime.parse(txn['date']),
-      description: txn['description'],
-      amount: amountDec,
-      category: txn['category'],
-      isTransfer: txn['is_transfer'] == true,
-      excludeFromReports: txn['exclude_from_reports'] == true,
-      accountName: txn['account_name'],
-    );
-    TransactionSettingsSheet.show(context, model).then((updated) {
-      if (updated == true && context.mounted) {
-        context.read<DashboardService>().refresh();
-        _fetchTransactions(reset: true);
-      }
-    });
-  }
 
   Widget _buildFab(BuildContext context) {
     return FloatingActionButton(
       onPressed: () {
-        Navigator.push(
+        Navigator.push<bool>(
           context,
-          MaterialPageRoute(builder: (_) => AddTransactionScreen()),
+          MaterialPageRoute<bool>(builder: (_) => const AddTransactionScreen()),
         ).then((val) {
           if (val == true && context.mounted) {
             context.read<DashboardService>().refresh();

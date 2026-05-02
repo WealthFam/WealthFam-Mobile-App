@@ -1,20 +1,20 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart';
-import 'package:mobile_app/core/config/app_config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:telephony/telephony.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:mobile_app/modules/auth/services/auth_service.dart';
-
+import 'package:http/http.dart' as http;
+import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/services/foreground_service.dart';
 import 'package:mobile_app/core/utils/logger.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:async';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:telephony/telephony.dart';
 
 extension PlatformCheck on TargetPlatform {
   bool get shouldUseTelephony => this == TargetPlatform.android;
@@ -23,6 +23,8 @@ extension PlatformCheck on TargetPlatform {
 // Top-level background execution is now handled natively in Kotlin (SmsReceiver.kt)
 
 class SmsService extends ChangeNotifier {
+  SmsService(this._config, this._auth);
+
   final AppConfig _config;
   final AuthService _auth;
 
@@ -93,7 +95,7 @@ class SmsService extends ChangeNotifier {
 
     return allItems.any((item) {
       try {
-        final decoded = jsonDecode(item);
+        final decoded = jsonDecode(item) as Map<String, dynamic>;
         final itemHash =
             decoded['hash'] ??
             _computeHash(
@@ -108,6 +110,7 @@ class SmsService extends ChangeNotifier {
     });
   }
 
+
   // Metadata cache: hash -> {'lat': double, 'lng': double, 'time': int}
   final Map<String, Map<String, dynamic>> _smsMetadata = {};
 
@@ -116,13 +119,11 @@ class SmsService extends ChangeNotifier {
 
   bool _isRequestingPermission = false;
 
-  SmsService(this._config, this._auth);
-
   Future<bool> _requestSmsPermission() async {
     if (_isRequestingPermission) {
       // Wait for the active request to complete
       while (_isRequestingPermission) {
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
       return (await Permission.sms.status).isGranted;
     }
@@ -170,7 +171,7 @@ class SmsService extends ChangeNotifier {
     await _loadSyncedHashesJournal();
 
     if (kIsWeb || !defaultTargetPlatform.shouldUseTelephony) {
-      AppLogger.info("SMS features disabled: Not on Android.");
+      AppLogger.info('SMS features disabled: Not on Android.');
       return;
     }
 
@@ -185,7 +186,7 @@ class SmsService extends ChangeNotifier {
       }
 
       _startListening();
-      AppLogger.info("SmsService: Real-time SMS Listener Started.");
+      AppLogger.info('SmsService: Real-time SMS Listener Started.');
 
       if (_isForegroundServiceEnabled && _auth.accessToken != null) {
         ForegroundServiceWrapper.start(
@@ -204,7 +205,7 @@ class SmsService extends ChangeNotifier {
       ) {
         final hasConnection = results.any((r) => r != ConnectivityResult.none);
         if (hasConnection && queueCount > 0) {
-          AppLogger.info("Connectivity regained, retrying SMS queue...");
+          AppLogger.info('Connectivity regained, retrying SMS queue...');
           retryQueue();
         }
       });
@@ -237,7 +238,7 @@ class SmsService extends ChangeNotifier {
   void _handleConfigChange() {
     if (_isForegroundServiceEnabled && _auth.accessToken != null) {
       AppLogger.info(
-        "SmsService: Config changed, updating foreground service...",
+        'SmsService: Config changed, updating foreground service...',
       );
       _saveCredentials();
       ForegroundServiceWrapper.start(
@@ -296,7 +297,7 @@ class SmsService extends ChangeNotifier {
         _isForegroundServiceEnabled = false;
         await _prefs.setBool('fg_service_enabled', false);
         notifyListeners();
-        throw Exception("Authentication required to start sync service");
+        throw Exception('Authentication required to start sync service');
       }
       await _saveCredentials();
 
@@ -322,10 +323,10 @@ class SmsService extends ChangeNotifier {
 
       if (permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse) {
-        AppLogger.info("Location permissions granted");
+        AppLogger.info('Location permissions granted');
       }
     } catch (e) {
-      AppLogger.error("Error requesting location permissions", e);
+      AppLogger.error('Error requesting location permissions', e);
     }
   }
 
@@ -334,7 +335,7 @@ class SmsService extends ChangeNotifier {
     // The native receiver writes directly to the shared queue and pushes to backend.
     // We no longer need a foreground Dart listener which would cause duplicates.
     AppLogger.info(
-      "SmsService: Real-time listening delegated to Native Bridge.",
+      'SmsService: Real-time listening delegated to Native Bridge.',
     );
   }
 
@@ -368,8 +369,8 @@ class SmsService extends ChangeNotifier {
       address,
       body,
       date,
-      lat: lat ?? metadata?['lat'],
-      lng: lng ?? metadata?['lng'],
+      lat: lat ?? (metadata?['lat'] as double?),
+      lng: lng ?? (metadata?['lng'] as double?),
     );
 
     try {
@@ -383,11 +384,11 @@ class SmsService extends ChangeNotifier {
       final List<String> queue = _getSafeQueueItems();
       queue.removeWhere((item) {
         try {
-          final decoded = jsonDecode(item);
+          final decoded = jsonDecode(item) as Map<String, dynamic>;
           return _computeHash(
-                decoded['address'],
+                decoded['address'] as String,
                 decoded['date'].toString(),
-                decoded['body'],
+                decoded['body'] as String,
               ) ==
               hash;
         } catch (_) {
@@ -398,7 +399,7 @@ class SmsService extends ChangeNotifier {
 
       return res;
     } catch (e) {
-      AppLogger.error("Failed to send SMS to backend", e);
+      AppLogger.error('Failed to send SMS to backend', e);
       _updateSyncStats(false);
       rethrow; // Stay in queue for retry later
     }
@@ -424,7 +425,7 @@ class SmsService extends ChangeNotifier {
     );
     final cleanBody = body.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-    final raw = "$cleanAddress-$cleanDate-$cleanBody";
+    final raw = '$cleanAddress-$cleanDate-$cleanBody';
     return sha256.convert(utf8.encode(raw)).toString();
   }
 
@@ -450,7 +451,7 @@ class SmsService extends ChangeNotifier {
         _syncedHashes.addAll(lines.where((l) => l.isNotEmpty));
       }
     } catch (e) {
-      AppLogger.warn("SmsService: Journal load failed: $e");
+      AppLogger.warn('SmsService: Journal load failed: $e');
     }
   }
 
@@ -506,7 +507,7 @@ class SmsService extends ChangeNotifier {
     double? lng,
   }) async {
     if (!_auth.isAuthenticated || _auth.accessToken == null) {
-      throw Exception("Not Authenticated");
+      throw Exception('Not Authenticated');
     }
 
     // Get Location if possible
@@ -529,7 +530,7 @@ class SmsService extends ChangeNotifier {
           finalLng = position.longitude;
         }
       } catch (e) {
-        AppLogger.warn("SmsService: Error getting location: $e");
+        AppLogger.warn('SmsService: Error getting location: $e');
       }
     }
 
@@ -552,7 +553,7 @@ class SmsService extends ChangeNotifier {
     while (attempts < 5) {
       attempts++;
       try {
-        AppLogger.debug("SmsService: Sync attempt $attempts for $hash");
+        AppLogger.debug('SmsService: Sync attempt $attempts for $hash');
         final response = await http
             .post(
               url,
@@ -573,19 +574,25 @@ class SmsService extends ChangeNotifier {
               _debugLogs.map((e) => jsonEncode(e)).toList(),
             );
           }
-          return jsonDecode(response.body);
+          return jsonDecode(response.body) as Map<String, dynamic>;
         } else {
-          final detail = jsonDecode(response.body)['detail'] ?? 'Backend Error';
-          lastError = Exception("$detail (${response.statusCode})");
-          if (attempts < 5) await Future.delayed(const Duration(seconds: 2));
+          final detail =
+              (jsonDecode(response.body) as Map<String, dynamic>)['detail'] ??
+                  'Backend Error';
+          lastError = Exception('$detail (${response.statusCode})');
+          if (attempts < 5) {
+            await Future<void>.delayed(const Duration(seconds: 2));
+          }
         }
       } catch (e) {
         lastError = e is Exception ? e : Exception(e.toString());
-        if (attempts < 5) await Future.delayed(const Duration(seconds: 2));
+        if (attempts < 5) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+        }
       }
     }
 
-    throw lastError ?? Exception("Failed after 5 attempts");
+    throw lastError ?? Exception('Failed after 5 attempts');
   }
 
   // --- Offline Queue Logic ---
@@ -631,10 +638,10 @@ class SmsService extends ChangeNotifier {
     try {
       for (final itemStr in queue) {
         try {
-          final item = jsonDecode(itemStr);
-          final address = item['address'];
-          final body = item['body'];
-          final date = item['date'];
+          final item = jsonDecode(itemStr) as Map<String, dynamic>;
+          final address = item['address'] as String;
+          final body = item['body'] as String;
+          final date = item['date'] as int;
 
           final hash = _computeHash(address, date.toString(), body);
           if (!_isCached(hash)) {
@@ -666,7 +673,7 @@ class SmsService extends ChangeNotifier {
   Future<void> syncNow() async {
     if (_isSyncing) return;
     _isSyncing = true;
-    _lastSyncStatus = "Syncing...";
+    _lastSyncStatus = 'Syncing...';
     notifyListeners();
 
     try {
@@ -676,10 +683,10 @@ class SmsService extends ChangeNotifier {
       // 2. Scan recent inbox (last 72 hours) for missed ones
       await syncLastHours(72);
 
-      _lastSyncStatus = "Success";
+      _lastSyncStatus = 'Success';
     } catch (e) {
-      _lastSyncStatus = "Failed";
-      AppLogger.error("Manual Sync Error", e);
+      _lastSyncStatus = 'Failed';
+      AppLogger.error('Manual Sync Error', e);
     } finally {
       _isSyncing = false;
       _lastSyncTime = DateTime.now();
@@ -694,9 +701,9 @@ class SmsService extends ChangeNotifier {
     if (kIsWeb || !defaultTargetPlatform.shouldUseTelephony) return;
 
     // Delay startup scan to let the main UI load and background task stabilize
-    Future.delayed(const Duration(seconds: 10), () async {
+    Future<void>.delayed(const Duration(seconds: 10), () async {
       AppLogger.info(
-        "SmsService: Starting background sync of recent messages (24h window)...",
+        'SmsService: Starting background sync of recent messages (24h window)...',
       );
       await syncLastHours(24);
     });
@@ -721,7 +728,7 @@ class SmsService extends ChangeNotifier {
           pushed++;
           _updateSyncStats(true);
         } catch (e) {
-          AppLogger.warn("Push all failed for one message: $e");
+          AppLogger.warn('Push all failed for one message: $e');
         }
       }
     }
@@ -735,7 +742,7 @@ class SmsService extends ChangeNotifier {
 
   Future<int> syncFromDate(DateTime fromDate) async {
     if (kIsWeb || !defaultTargetPlatform.shouldUseTelephony) {
-      AppLogger.info("Manual Sync skipped: Not on Android.");
+      AppLogger.info('Manual Sync skipped: Not on Android.');
       return 0;
     }
 
@@ -776,18 +783,18 @@ class SmsService extends ChangeNotifier {
     await _prefs.reload();
     final isGranted = await _requestSmsPermission();
     if (!isGranted) {
-      AppLogger.warn("SmsService: READ_SMS permission denied");
+      AppLogger.warn('SmsService: READ_SMS permission denied');
       return [];
     }
 
     try {
       final msgs = await _telephony.getInboxSms(
-        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
+        sortOrder: [OrderBy(SmsColumn.DATE)],
       );
       // Return only most recent 50 to avoid UI lag
       return msgs.length > 50 ? msgs.sublist(0, 50) : msgs;
     } catch (e) {
-      AppLogger.error("Error fetching SMS", e);
+      AppLogger.error('Error fetching SMS', e);
       return [];
     }
   }
@@ -798,16 +805,16 @@ class SmsService extends ChangeNotifier {
     if (!isGranted) return [];
 
     try {
-      AppLogger.debug("SmsService: Deep querying for address: $address");
+      AppLogger.debug('SmsService: Deep querying for address: $address');
       // Use getInboxSms with like filter for flexibility
       final msgs = await _telephony.getInboxSms(
-        filter: SmsFilter.where(SmsColumn.ADDRESS).like("%$address%"),
-        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
+        filter: SmsFilter.where(SmsColumn.ADDRESS).like('%$address%'),
+        sortOrder: [OrderBy(SmsColumn.DATE)],
       );
-      AppLogger.debug("SmsService: Deep query found ${msgs.length} messages");
+      AppLogger.debug('SmsService: Deep query found ${msgs.length} messages');
       return msgs;
     } catch (e) {
-      AppLogger.error("SmsService: Deep query error", e);
+      AppLogger.error('SmsService: Deep query error', e);
       return [];
     }
   }
@@ -834,9 +841,9 @@ class SmsService extends ChangeNotifier {
     if (success) {
       _messagesSyncedToday++;
       _prefs.setInt('msgs_synced_today', _messagesSyncedToday);
-      _lastSyncStatus = "Success";
+      _lastSyncStatus = 'Success';
     } else {
-      _lastSyncStatus = "Failed";
+      _lastSyncStatus = 'Failed';
     }
     notifyListeners();
   }

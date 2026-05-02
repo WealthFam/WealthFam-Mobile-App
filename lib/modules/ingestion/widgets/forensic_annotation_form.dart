@@ -1,23 +1,23 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/core/widgets/searchable_picker.dart';
 import 'package:mobile_app/core/widgets/category_picker.dart';
+import 'package:mobile_app/core/widgets/searchable_picker.dart';
 import 'package:mobile_app/modules/home/models/unparsed_message.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:decimal/decimal.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:provider/provider.dart';
 
 class ForensicAnnotationForm extends StatefulWidget {
-  final UnparsedMessage message;
-  final VoidCallback onComplete;
-
   const ForensicAnnotationForm({
-    super.key,
     required this.message,
     required this.onComplete,
+    super.key,
   });
+
+  final UnparsedMessage message;
+  final VoidCallback onComplete;
 
   @override
   State<ForensicAnnotationForm> createState() => _ForensicAnnotationFormState();
@@ -78,9 +78,9 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
         if (mounted) {
           setState(() {
             _amountController.text = (data['amount'] ?? '').toString();
-            _descController.text = data['description'] ?? '';
-            _category = data['category'] ?? 'Uncategorized';
-            _type = data['type'] ?? _type;
+            _descController.text = (data['description'] as String?) ?? '';
+            _category = (data['category'] as String?) ?? 'Uncategorized';
+            _type = (data['type'] as String?) ?? _type;
 
             _isAmountAI = true;
             _isDescAI = true;
@@ -91,7 +91,8 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
             final mask = data['account_mask']?.toString();
             if (mask != null && mask.length >= 4) {
               final last4 = mask.substring(mask.length - 4);
-              for (var acc in _accounts) {
+              for (var accRaw in _accounts) {
+                final acc = accRaw as Map<String, dynamic>;
                 final accName = acc['name'].toString().toLowerCase();
                 if (accName.contains(last4)) {
                   _selectedAccountId = acc['id'] as String;
@@ -191,7 +192,6 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
     }
 
     return SafeArea(
-      bottom: true,
       child: Container(
         decoration: BoxDecoration(
           color: theme.scaffoldBackgroundColor,
@@ -409,8 +409,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                                 child: Icon(Icons.currency_rupee, size: 18),
                               ),
                               prefixIconConstraints: const BoxConstraints(
-                                minWidth: 0,
-                                minHeight: 0,
+                                
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -568,11 +567,12 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                                     'name': _selectedAccountName,
                                   }
                                 : null,
-                            labelMapper: (a) => a['name'] as String,
-                            onSelected: (a) {
+                            labelMapper: (dynamic a) => (a as Map<String, dynamic>)['name'] as String,
+                            onSelected: (dynamic a) {
+                              final acc = a as Map<String, dynamic>;
                               setState(() {
-                                _selectedAccountId = a['id'] as String;
-                                _selectedAccountName = a['name'] as String;
+                                _selectedAccountId = acc['id'] as String;
+                                _selectedAccountName = acc['name'] as String;
                               });
                             },
                           ),
@@ -677,7 +677,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.bolt, color: AppTheme.primary, size: 20),
+                      const Icon(Icons.bolt, color: AppTheme.primary, size: 20),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(

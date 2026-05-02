@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/core/widgets/searchable_category_picker.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
+import 'package:provider/provider.dart';
 
 class CategoryPickerField extends StatelessWidget {
-  final String selectedCategory;
-  final Function(String) onCategorySelected;
-  final bool isHighlighted;
 
   const CategoryPickerField({
-    super.key,
-    required this.selectedCategory,
-    required this.onCategorySelected,
+    required this.selectedCategory, required this.onCategorySelected, super.key,
     this.isHighlighted = false,
   });
+  final String selectedCategory;
+  final void Function(String) onCategorySelected;
+  final bool isHighlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +21,7 @@ class CategoryPickerField extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        showModalBottomSheet(
+        showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,

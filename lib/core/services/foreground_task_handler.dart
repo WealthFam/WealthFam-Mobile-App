@@ -1,14 +1,15 @@
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:crypto/crypto.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:telephony/telephony.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:telephony/telephony.dart';
 
 @pragma('vm:entry-point')
 void startCallback() {
@@ -65,7 +66,7 @@ class SyncTaskHandler extends TaskHandler {
       final List<String> remaining = [];
       for (final itemStr in queue) {
         try {
-          final data = jsonDecode(itemStr);
+          final data = jsonDecode(itemStr) as Map<String, dynamic>;
           final success = await _handleNativeSms(data);
           if (!success) remaining.add(itemStr);
         } catch (_) {
@@ -136,7 +137,7 @@ class SyncTaskHandler extends TaskHandler {
           RegExp(r'[^a-z0-9]'),
           '',
         );
-        final raw = "$cleanSender-$cleanDate-$cleanMessage";
+        final raw = '$cleanSender-$cleanDate-$cleanMessage';
         final hash = sha256.convert(utf8.encode(raw)).toString();
 
         if (!prefs.containsKey('sms_hash_$hash')) {
@@ -185,7 +186,7 @@ class SyncTaskHandler extends TaskHandler {
         if (file is File && file.path.endsWith('.json')) {
           try {
             final String content = await file.readAsString();
-            final data = jsonDecode(content);
+            final data = jsonDecode(content) as Map<String, dynamic>;
 
             final success = await _handleNativeSms(data);
             if (success) {
@@ -211,12 +212,12 @@ class SyncTaskHandler extends TaskHandler {
   @override
   @pragma('vm:entry-point')
   void onReceiveData(Object data) {
-    if (data is Map && data['type'] == 'sms') {
+    if (data is Map<String, dynamic> && data['type'] == 'sms') {
       _handleNativeSms(data);
     }
   }
 
-  Future<bool> _handleNativeSms(Map data) async {
+  Future<bool> _handleNativeSms(Map<String, dynamic> data) async {
     final sender = (data['sender'] ?? '').toString();
     final message = (data['message'] ?? '').toString();
     final dynamic rawDate = data['date'];
@@ -242,7 +243,7 @@ class SyncTaskHandler extends TaskHandler {
         '',
       );
 
-      final raw = "$cleanSender-$cleanDate-$cleanMessage";
+      final raw = '$cleanSender-$cleanDate-$cleanMessage';
       final hash = sha256.convert(utf8.encode(raw)).toString();
 
       var url = await FlutterForegroundTask.getData<String>(key: 'backend_url');
@@ -313,10 +314,14 @@ class SyncTaskHandler extends TaskHandler {
           if (response.statusCode == 200 || response.statusCode == 201) {
             success = true;
           } else {
-            if (attempts < 5) await Future.delayed(const Duration(seconds: 2));
+            if (attempts < 5) {
+              await Future<void>.delayed(const Duration(seconds: 2));
+            }
           }
         } catch (e) {
-          if (attempts < 5) await Future.delayed(const Duration(seconds: 2));
+          if (attempts < 5) {
+            await Future<void>.delayed(const Duration(seconds: 2));
+          }
         }
       }
 
@@ -431,9 +436,9 @@ class SyncTaskHandler extends TaskHandler {
             .timeout(const Duration(seconds: 15));
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final rawToday = (data['today_total'] ?? 0.0).toDouble();
-          final rawMonth = (data['monthly_total'] ?? 0.0).toDouble();
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final rawToday = (data['today_total'] as num? ?? 0.0).toDouble();
+          final rawMonth = (data['monthly_total'] as num? ?? 0.0).toDouble();
 
           final maskingFactor =
               await FlutterForegroundTask.getData<double>(
@@ -444,10 +449,10 @@ class SyncTaskHandler extends TaskHandler {
           final today = (rawToday / maskingFactor).toStringAsFixed(0);
           final month = (rawMonth / maskingFactor).toStringAsFixed(0);
 
-          final symbol = '₹';
+          const symbol = '₹';
           final time = DateTime.now();
           final timeStr =
-              "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
           await FlutterForegroundTask.updateService(
             notificationTitle: 'WealthFam Guard',
@@ -464,7 +469,7 @@ class SyncTaskHandler extends TaskHandler {
               .timeout(const Duration(seconds: 5));
 
           if (alertsResponse.statusCode == 200) {
-            final List alerts = jsonDecode(alertsResponse.body);
+            final alerts = jsonDecode(alertsResponse.body) as List<dynamic>;
             if (alerts.isNotEmpty) {
               final FlutterLocalNotificationsPlugin alertsPlugin =
                   FlutterLocalNotificationsPlugin();
@@ -474,9 +479,10 @@ class SyncTaskHandler extends TaskHandler {
                 const InitializationSettings(android: androidSettings),
               );
 
-              for (var alert in alerts) {
-                final title = alert['title'] ?? 'Alert';
-                final body = alert['body'] ?? '';
+              for (var alertRaw in alerts) {
+                final alert = alertRaw as Map<String, dynamic>;
+                final title = alert['title'] as String? ?? 'Alert';
+                final body = alert['body'] as String? ?? '';
                 final dynamic rawId = alert['id'];
                 final int id =
                     (rawId is int
@@ -496,8 +502,6 @@ class SyncTaskHandler extends TaskHandler {
                       channelDescription: 'Real-time financial alerts',
                       importance: Importance.max,
                       priority: Priority.high,
-                      playSound: true,
-                      autoCancel: true,
                     ),
                   ),
                 );

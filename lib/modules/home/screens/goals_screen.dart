@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
-import 'package:mobile_app/modules/home/services/goals_service.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
-import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/screens/investment_goal_details_screen.dart';
+import 'package:mobile_app/modules/home/services/dashboard_service.dart';
+import 'package:mobile_app/modules/home/services/goals_service.dart';
+import 'package:provider/provider.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -67,7 +67,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
     final targetController = TextEditingController();
     final descriptionController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('New Investment Goal'),
@@ -156,7 +156,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       itemCount: goals.length,
       itemBuilder: (context, index) {
-        final goal = goals[index];
+        final goal = goals[index] as Map<String, dynamic>;
         final double current =
             double.tryParse(goal['current_amount']?.toString() ?? '0') ?? 0.0;
         final double target =
@@ -173,9 +173,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
           ),
           child: InkWell(
             onTap: () {
-              Navigator.push(
+              Navigator.push<void>(
                 context,
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => InvestmentGoalDetailsScreen(goal: goal),
                 ),
               );
@@ -211,7 +211,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    goal['name'] ?? 'Unnamed Goal',
+                                    goal['name'] as String? ?? 'Unnamed Goal',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
@@ -225,11 +225,11 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               ],
                             ),
                             if (goal['description'] != null &&
-                                goal['description'].isNotEmpty)
+                                (goal['description'] as String).isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
-                                  goal['description'],
+                                  goal['description'] as String,
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 13,
@@ -305,14 +305,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   void _showDeleteConfirm(
     BuildContext context,
-    dynamic goal,
+    Map<String, dynamic> goal,
     GoalsService service,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Goal?'),
-        content: Text('Are you sure you want to delete "${goal['name']}"?'),
+        content: Text('Are you sure you want to delete "${goal['name'] as String? ?? 'Unnamed'}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

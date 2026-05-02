@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:screen_protector/screen_protector.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SecurityService extends ChangeNotifier {
   final LocalAuthentication _auth = LocalAuthentication();
@@ -64,14 +64,13 @@ class SecurityService extends ChangeNotifier {
         localizedReason: 'Please authenticate to access WealthFam',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false,
         ),
       );
 
       _isAuthenticated = didAuthenticate;
       return didAuthenticate;
     } catch (e) {
-      debugPrint("Auth Error: $e");
+      debugPrint('Auth Error: $e');
       return false;
     }
   }
