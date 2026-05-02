@@ -21,6 +21,7 @@ class SyncTaskHandler extends TaskHandler {
   int _eventCount = 0;
   Timer? _timer;
   bool _isProcessingQueue = false;
+  bool _isProcessingOfflineQueue = false;
   String? _resolvedFilesPath;
 
   @override
@@ -57,28 +58,70 @@ class SyncTaskHandler extends TaskHandler {
   }
 
   Future<void> _retryOfflineQueue() async {
+    if (_isProcessingOfflineQueue) return;
+    _isProcessingOfflineQueue = true;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
       final List<String> queue = prefs.getStringList('sms_offline_queue') ?? [];
-      if (queue.isEmpty) return;
+      if (queue.isEmpty) {
+        _isProcessingOfflineQueue = false;
+        return;
+      }
 
       final List<String> remaining = [];
+      bool stopDueToFailure = false;
+      int processedCount = 0;
+
+      // Process batch of max 10 to avoid blocking isolate too long
       for (final itemStr in queue) {
+        if (stopDueToFailure || processedCount >= 10) {
+          remaining.add(itemStr);
+          continue;
+        }
+
         try {
           final data = jsonDecode(itemStr) as Map<String, dynamic>;
-          // Important: Pass isRetry=true to avoid internal re-queuing and loop
+          // Use isRetry=true to ensure only 1 attempt per item in this cycle
           final success = await _handleNativeSms(data, isRetry: true);
-          if (!success) remaining.add(itemStr);
+          
+          if (success) {
+            processedCount++;
+          } else {
+            // Fail-fast: If one fails, network is likely down. Stop trying the rest.
+            remaining.add(itemStr);
+            stopDueToFailure = true;
+          }
         } catch (_) {
           remaining.add(itemStr);
+          stopDueToFailure = true;
         }
       }
-      // Reload again to avoid race conditions with other processes
-      await prefs.reload();
-      await prefs.setStringList('sms_offline_queue', remaining);
-    } catch (e) {
-      // Background retry failed, will try again in next cycle
+
+      if (processedCount > 0) {
+        // Reload again to ensure we don't overwrite items added by other isolates/threads
+        await prefs.reload();
+        final currentQueue = prefs.getStringList('sms_offline_queue') ?? [];
+        
+        // Match by hash to remove only the ones we successfully processed
+        // This is safer than just saving 'remaining' in case new items were added
+        // But for simplicity and since we are in a 5s tick, we can just filter
+        // Wait, the safest way is to filter currentQueue by removing what we synced
+        // But since we don't have the hashes here easily, we'll use the 'remaining' logic
+        // and just append anything that was added to currentQueue while we were working.
+        
+        // Actually, the 'remaining' list contains everything we didn't process.
+        // If currentQueue has more items than our original 'queue', it means new items arrived.
+        if (currentQueue.length > queue.length) {
+          final newItems = currentQueue.sublist(queue.length);
+          remaining.addAll(newItems);
+        }
+        
+        await prefs.setStringList('sms_offline_queue', remaining);
+      }
+    } finally {
+      _isProcessingOfflineQueue = false;
     }
   }
 
