@@ -22,7 +22,9 @@ class _BiometricGateState extends State<BiometricGate> {
 
   Future<void> _checkAuth() async {
     final security = context.read<SecurityService>();
-    debugPrint("BiometricGate: isBiometricEnabled=${security.isBiometricEnabled}, isAuthenticated=${security.isAuthenticated}");
+    debugPrint(
+      "BiometricGate: isBiometricEnabled=${security.isBiometricEnabled}, isAuthenticated=${security.isAuthenticated}",
+    );
     if (security.isBiometricEnabled && !security.isAuthenticated) {
       _authenticate();
     }
@@ -32,14 +34,17 @@ class _BiometricGateState extends State<BiometricGate> {
     if (_isAuthenticating) return;
     debugPrint("BiometricGate: Requesting authentication...");
     setState(() => _isAuthenticating = true);
-    
+
     final success = await context.read<SecurityService>().authenticate();
     debugPrint("BiometricGate: Authentication result: $success");
-    
+
     if (mounted) {
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication Failed'), backgroundColor: AppTheme.danger)
+          const SnackBar(
+            content: Text('Authentication Failed'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
       }
       setState(() => _isAuthenticating = false);
@@ -60,7 +65,11 @@ class _BiometricGateState extends State<BiometricGate> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.fingerprint, size: 80, color: AppTheme.primary),
+                const Icon(
+                  Icons.fingerprint,
+                  size: 80,
+                  color: AppTheme.primary,
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Biometric Authentication',

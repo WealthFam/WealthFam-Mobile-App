@@ -47,59 +47,71 @@ class CategoryPickerField extends StatelessWidget {
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: isHighlighted ? theme.primaryColor.withOpacity(0.05) : theme.colorScheme.surface, 
-          borderRadius: BorderRadius.circular(12), 
-          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+          color: isHighlighted
+              ? theme.primaryColor.withValues(alpha: 0.05)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
         ),
         child: Row(
           children: [
-            Text(
-              () {
-                final leafName = selectedCategory.contains(' › ') 
-                    ? selectedCategory.split(' › ').last 
-                    : selectedCategory;
-                
-                // Search top-level and subcategories
-                for (var cat in categories) {
-                  if (cat.name == leafName) return cat.icon ?? '🏷️';
-                  for (var sub in cat.subcategories) {
-                    if (sub.name == leafName) return sub.icon ?? (cat.icon ?? '🏷️');
+            Text(() {
+              final leafName = selectedCategory.contains(' › ')
+                  ? selectedCategory.split(' › ').last
+                  : selectedCategory;
+
+              // Search top-level and subcategories
+              for (var cat in categories) {
+                if (cat.name == leafName) {
+                  return cat.icon ?? '🏷️';
+                }
+                for (var sub in cat.subcategories) {
+                  if (sub.name == leafName) {
+                    return sub.icon ?? (cat.icon ?? '🏷️');
                   }
                 }
-                return selectedCategory == 'Uncategorized' ? '📁' : '🏷️';
-              }(),
-              style: const TextStyle(fontSize: 16)
-            ),
+              }
+              return selectedCategory == 'Uncategorized' ? '📁' : '🏷️';
+            }(), style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 () {
-                  if (selectedCategory.contains(' › ') || selectedCategory == 'Uncategorized') {
+                  if (selectedCategory.contains(' › ') ||
+                      selectedCategory == 'Uncategorized') {
                     return selectedCategory;
                   }
-                  
+
                   // Try to find if this leaf name belongs to a hierarchy
                   for (var cat in categories) {
                     for (var sub in cat.subcategories) {
-                      if (sub.name.toLowerCase() == selectedCategory.toLowerCase()) {
+                      if (sub.name.toLowerCase() ==
+                          selectedCategory.toLowerCase()) {
                         return '${cat.name} › ${sub.name}';
                       }
                     }
-                    if (cat.name.toLowerCase() == selectedCategory.toLowerCase()) {
+                    if (cat.name.toLowerCase() ==
+                        selectedCategory.toLowerCase()) {
                       return cat.name;
                     }
                   }
                   return selectedCategory;
                 }(),
                 style: TextStyle(
-                  fontSize: 13, 
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: isHighlighted ? theme.primaryColor : theme.colorScheme.onSurface,
+                  color: isHighlighted
+                      ? theme.primaryColor
+                      : theme.colorScheme.onSurface,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.search, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+            Icon(
+              Icons.search,
+              size: 16,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
           ],
         ),
       ),

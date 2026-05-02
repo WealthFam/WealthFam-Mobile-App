@@ -20,6 +20,7 @@ import 'package:mobile_app/core/services/socket_service.dart';
 import 'package:mobile_app/core/utils/logger.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile_app/core/services/navigation_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,10 +41,11 @@ void main() async {
     await auth.init().timeout(const Duration(seconds: 3));
     await security.init().timeout(const Duration(seconds: 3));
   } catch (e) {
+    AppLogger.error('Core service initialization failed', e);
   }
 
   _initSecondaryServices(notifications);
-  sms.init(); 
+  sms.init();
 
   final dashboard = DashboardService(config, auth);
   final funds = FundsService(config, auth);
@@ -86,19 +88,21 @@ void main() async {
     });
   }
 
-  runApp(MyApp(
-    config: config,
-    auth: auth,
-    sms: sms,
-    security: security,
-    dashboard: dashboard,
-    funds: funds,
-    categories: categories,
-    vault: vault,
-    goals: goals,
-    socket: socket,
-    notifications: notifications,
-  ));
+  runApp(
+    MyApp(
+      config: config,
+      auth: auth,
+      sms: sms,
+      security: security,
+      dashboard: dashboard,
+      funds: funds,
+      categories: categories,
+      vault: vault,
+      goals: goals,
+      socket: socket,
+      notifications: notifications,
+    ),
+  );
 }
 
 /// Start background services without blocking main app startup
@@ -107,6 +111,7 @@ Future<void> _initSecondaryServices(NotificationService notifications) async {
     await notifications.init().timeout(const Duration(seconds: 5));
     await ForegroundServiceWrapper.init().timeout(const Duration(seconds: 5));
   } catch (e) {
+    AppLogger.warn('Secondary services initialization failed: $e');
   }
 }
 
@@ -124,11 +129,11 @@ class MyApp extends StatelessWidget {
   final NotificationService notifications;
 
   const MyApp({
-    super.key, 
-    required this.config, 
-    required this.auth, 
-    required this.sms, 
-    required this.security, 
+    super.key,
+    required this.config,
+    required this.auth,
+    required this.sms,
+    required this.security,
     required this.dashboard,
     required this.funds,
     required this.categories,
@@ -152,6 +157,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: vault),
         ChangeNotifierProvider.value(value: goals),
         ChangeNotifierProvider.value(value: socket),
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
         Provider.value(value: notifications),
       ],
       child: Consumer<AuthService>(
@@ -161,8 +167,8 @@ class MyApp extends StatelessWidget {
             title: 'WealthFam',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
-            home: auth.isAuthenticated 
-                ? BiometricGate(child: const HomeScreen()) 
+            home: auth.isAuthenticated
+                ? BiometricGate(child: const HomeScreen())
                 : const LoginScreen(),
           );
         },

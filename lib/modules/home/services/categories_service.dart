@@ -47,7 +47,7 @@ class CategoriesService extends ChangeNotifier {
 
   Future<void> fetchCategories({bool force = false}) async {
     if (_auth.accessToken == null) return;
-    
+
     // Check if we already have categories to avoid spamming
     if (!force && _categories.isNotEmpty) return;
 
@@ -58,9 +58,7 @@ class CategoriesService extends ChangeNotifier {
       final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/categories');
       final response = await http.get(
         url,
-        headers: {
-          'Authorization': 'Bearer ${_auth.accessToken}',
-        },
+        headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
       );
 
       if (response.statusCode == 200) {
@@ -76,9 +74,16 @@ class CategoriesService extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateTransactionCategory(String txnId, String newCategory, {bool createRule = false, List<String>? keywords}) async {
+  Future<bool> updateTransactionCategory(
+    String txnId,
+    String newCategory, {
+    bool createRule = false,
+    List<String>? keywords,
+  }) async {
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/transactions/$txnId');
+      final url = Uri.parse(
+        '${_config.backendUrl}/api/v1/mobile/transactions/$txnId',
+      );
       final response = await http.patch(
         url,
         headers: {
@@ -99,7 +104,12 @@ class CategoriesService extends ChangeNotifier {
     }
   }
 
-  Future<bool> createCategory(String name, String type, {String? icon, String? parentId}) async {
+  Future<bool> createCategory(
+    String name,
+    String type, {
+    String? icon,
+    String? parentId,
+  }) async {
     try {
       final url = Uri.parse('${_config.backendUrl}/api/v1/finance/categories');
       final response = await http.post(
@@ -116,8 +126,8 @@ class CategoriesService extends ChangeNotifier {
         }),
       );
       if (response.statusCode == 200) {
-         await fetchCategories(force: true);
-         return true;
+        await fetchCategories(force: true);
+        return true;
       }
       return false;
     } catch (e) {
@@ -126,9 +136,17 @@ class CategoriesService extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateCategory(String id, String name, String type, {String? icon, String? parentId}) async {
+  Future<bool> updateCategory(
+    String id,
+    String name,
+    String type, {
+    String? icon,
+    String? parentId,
+  }) async {
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/finance/categories/$id');
+      final url = Uri.parse(
+        '${_config.backendUrl}/api/v1/finance/categories/$id',
+      );
       final response = await http.put(
         url,
         headers: {
@@ -143,8 +161,8 @@ class CategoriesService extends ChangeNotifier {
         }),
       );
       if (response.statusCode == 200) {
-         await fetchCategories(force: true);
-         return true;
+        await fetchCategories(force: true);
+        return true;
       }
       return false;
     } catch (e) {
@@ -155,16 +173,16 @@ class CategoriesService extends ChangeNotifier {
 
   Future<bool> deleteCategory(String id) async {
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/finance/categories/$id');
+      final url = Uri.parse(
+        '${_config.backendUrl}/api/v1/finance/categories/$id',
+      );
       final response = await http.delete(
         url,
-        headers: {
-          'Authorization': 'Bearer ${_auth.accessToken}',
-        },
+        headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
       );
       if (response.statusCode == 200) {
-         await fetchCategories(force: true);
-         return true;
+        await fetchCategories(force: true);
+        return true;
       }
       return false;
     } catch (e) {

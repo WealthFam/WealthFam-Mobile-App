@@ -6,7 +6,7 @@ import 'package:mobile_app/modules/auth/services/auth_service.dart';
 
 class ConfigScreen extends StatefulWidget {
   final VoidCallback? onSaved;
-  
+
   const ConfigScreen({super.key, this.onSaved});
 
   @override
@@ -37,28 +37,33 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     await context.read<AppConfig>().setUrls(
       backend: _backendCtrl.text.trim(),
       webUi: context.read<AppConfig>().webUiUrl,
     );
 
+    if (!mounted) return;
+    final authService = context.read<AuthService>();
     if (_deviceIdCtrl.text.isNotEmpty) {
-      await context.read<AuthService>().setDeviceId(_deviceIdCtrl.text.trim());
+      await authService.setDeviceId(_deviceIdCtrl.text.trim());
     }
-    
+
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     if (mounted) setState(() => _isLoading = false);
-    
+
     if (widget.onSaved != null) {
       widget.onSaved!();
     } else {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Configuration Saved'), duration: Duration(seconds: 1)),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Configuration Saved'),
+            duration: Duration(seconds: 1),
+          ),
         );
         Navigator.pop(context);
       }
@@ -82,26 +87,26 @@ class _ConfigScreenState extends State<ConfigScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-               const Icon(
+              const Icon(
                 Icons.settings_ethernet,
                 size: 64,
                 color: AppTheme.primary,
               ),
               const SizedBox(height: 32),
-              
+
               Text(
                 'Connect to WealthFam',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface
+                  color: theme.colorScheme.onSurface,
                 ),
                 textAlign: TextAlign.center,
               ),
-               const SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'Configure your self-hosted server endpoints.',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -117,7 +122,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Required';
-                  if (!value.startsWith('http')) return 'Must start with http/https';
+                  if (!value.startsWith('http')) {
+                    return 'Must start with http/https';
+                  }
                   return null;
                 },
               ),
@@ -140,14 +147,18 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _save,
-                child: _isLoading 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
-                  : const Text('Save Configuration'),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save Configuration'),
               ),
             ],
           ),

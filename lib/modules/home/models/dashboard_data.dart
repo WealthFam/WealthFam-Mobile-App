@@ -39,7 +39,9 @@ class DashboardData {
     return DashboardData(
       summary: DashboardSummary.fromJson(json['summary']),
       budget: BudgetSummary.fromJson(json['budget']),
-      investmentSummary: json['investment_summary'] != null ? InvestmentSummary.fromJson(json['investment_summary']) : null,
+      investmentSummary: json['investment_summary'] != null
+          ? InvestmentSummary.fromJson(json['investment_summary'])
+          : null,
       spendingTrend: (json['spending_trend'] as List? ?? [])
           .map((i) => SpendingTrendItem.fromJson(i))
           .toList(),
@@ -66,10 +68,14 @@ class DashboardData {
       'budget': budget.toJson(),
       'investment_summary': investmentSummary?.toJson(),
       'spending_trend': spendingTrend.map((i) => i.toJson()).toList(),
-      'category_distribution': categoryDistribution.map((i) => i.toJson()).toList(),
+      'category_distribution': categoryDistribution
+          .map((i) => i.toJson())
+          .toList(),
       'month_wise_trend': monthWiseTrend.map((i) => i.toJson()).toList(),
       'recent_transactions': recentTransactions.map((i) => i.toJson()).toList(),
-      'calendar_heatmap': calendarHeatmap.map((k, v) => MapEntry(k, v.toString())),
+      'calendar_heatmap': calendarHeatmap.map(
+        (k, v) => MapEntry(k, v.toString()),
+      ),
       'pending_triage_count': pendingTriageCount,
       'pending_training_count': pendingTrainingCount,
       'family_members_count': familyMembersCount,
@@ -110,7 +116,11 @@ class SpendingTrendItem {
   final Decimal amount;
   final Decimal dailyLimit;
 
-  SpendingTrendItem({required this.date, required this.amount, required this.dailyLimit});
+  SpendingTrendItem({
+    required this.date,
+    required this.amount,
+    required this.dailyLimit,
+  });
 
   factory SpendingTrendItem.fromJson(Map<String, dynamic> json) {
     return SpendingTrendItem(
@@ -125,7 +135,7 @@ class SpendingTrendItem {
     'amount': amount.toString(),
     'daily_limit': dailyLimit.toString(),
   };
-  
+
   DateTime get dateTime => DateTime.parse(date).toLocal();
 }
 
@@ -142,10 +152,7 @@ class CategoryPieItem {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'value': value.toString(),
-  };
+  Map<String, dynamic> toJson() => {'name': name, 'value': value.toString()};
 }
 
 class DashboardSummary {
@@ -241,7 +248,9 @@ class InvestmentSummary {
       currentValue: _toDecimal(json['current_value']),
       profitLoss: _toDecimal(json['profit_loss']),
       xirr: json['xirr'] != null ? _toDecimal(json['xirr']) : null,
-      sparkline: (json['sparkline'] as List? ?? []).map((v) => (v as num).toDouble()).toList(),
+      sparkline: (json['sparkline'] as List? ?? [])
+          .map((v) => (v as num).toDouble())
+          .toList(),
       dayChange: _toDecimal(json['day_change']),
       dayChangePercent: _toDecimal(json['day_change_percent']),
     );
@@ -341,8 +350,8 @@ class MonthTrendItem {
   final bool isSelected;
 
   MonthTrendItem({
-    required this.month, 
-    required this.spent, 
+    required this.month,
+    required this.spent,
     required this.budget,
     this.isSelected = false,
   });

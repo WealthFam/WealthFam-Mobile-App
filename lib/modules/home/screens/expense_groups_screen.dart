@@ -26,7 +26,6 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
   @override
   Widget build(BuildContext context) {
     final goalsService = context.watch<GoalsService>();
-    final theme = Theme.of(context);
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -39,21 +38,26 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
         child: goalsService.isLoading && goalsService.expenseGroups.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : goalsService.error != null && goalsService.expenseGroups.isEmpty
-                ? ListView(
-                    children: [
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                      Center(child: Text(goalsService.error!, style: const TextStyle(color: AppTheme.danger))),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () => goalsService.fetchExpenseGroups(),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ),
-                    ],
-                  )
-                : _buildExpenseGroupsList(goalsService, goalsService.expenseGroups),
+            ? ListView(
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                  Center(
+                    child: Text(
+                      goalsService.error!,
+                      style: const TextStyle(color: AppTheme.danger),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => goalsService.fetchExpenseGroups(),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              )
+            : _buildExpenseGroupsList(goalsService, goalsService.expenseGroups),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddGroupDialog(context),
@@ -67,7 +71,7 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
     final descriptionController = TextEditingController();
     final budgetController = TextEditingController();
     final iconController = TextEditingController(text: '📁');
-    
+
     DateTime startDate = DateTime.now();
     DateTime endDate = DateTime.now().add(const Duration(days: 30));
 
@@ -81,15 +85,27 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: iconController, 
-                  decoration: const InputDecoration(labelText: 'Icon (Emoji)', hintText: 'e.g. 🎒, 🏠'),
+                  controller: iconController,
+                  decoration: const InputDecoration(
+                    labelText: 'Icon (Emoji)',
+                    hintText: 'e.g. 🎒, 🏠',
+                  ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 24),
                 ),
                 const SizedBox(height: 16),
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Group Name', hintText: 'e.g. Goa Trip 2024')),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Group Name',
+                    hintText: 'e.g. Goa Trip 2024',
+                  ),
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description')),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -109,7 +125,13 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Start Date', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const Text(
+                              'Start Date',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(DateFormat('MMM d, yyyy').format(startDate)),
                           ],
@@ -132,7 +154,13 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('End Date', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const Text(
+                              'End Date',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(DateFormat('MMM d, yyyy').format(endDate)),
                           ],
@@ -143,15 +171,21 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: budgetController, 
-                  decoration: const InputDecoration(labelText: 'Budget (Optional)', prefixText: '₹ '),
+                  controller: budgetController,
+                  decoration: const InputDecoration(
+                    labelText: 'Budget (Optional)',
+                    prefixText: '₹ ',
+                  ),
                   keyboardType: TextInputType.number,
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final service = context.read<GoalsService>();
@@ -164,7 +198,8 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                   'end_date': endDate.toIso8601String(),
                   'is_active': true,
                 });
-                if (success && mounted) Navigator.pop(context);
+                if (!context.mounted) return;
+                if (success) Navigator.pop(context);
               },
               child: const Text('Create'),
             ),
@@ -176,20 +211,33 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
 
   Widget _buildExpenseGroupsList(GoalsService service, List<dynamic> groups) {
     if (groups.isEmpty) {
-      return ListView( // Needs to be scrollable for RefreshIndicator to work
+      return ListView(
+        // Needs to be scrollable for RefreshIndicator to work
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.group_work_outlined, size: 80, color: AppTheme.primary.withOpacity(0.2)),
+                Icon(
+                  Icons.group_work_outlined,
+                  size: 80,
+                  color: AppTheme.primary.withValues(alpha: 0.2),
+                ),
                 const SizedBox(height: 24),
-                Text('No expense groups found', 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+                Text(
+                  'No expense groups found',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                  ),
+                ),
                 const SizedBox(height: 8),
-                const Text('Create a group for an event or shared trip', 
-                  style: TextStyle(color: Colors.grey)),
+                const Text(
+                  'Create a group for an event or shared trip',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -217,7 +265,7 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+            side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
           ),
           child: InkWell(
             onTap: () {
@@ -242,12 +290,20 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
+                            color: AppTheme.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: group['icon'] != null && group['icon'].isNotEmpty
-                              ? Text(group['icon'], style: const TextStyle(fontSize: 24))
-                              : const Icon(Icons.group_work, color: AppTheme.primary, size: 24),
+                          child:
+                              group['icon'] != null && group['icon'].isNotEmpty
+                              ? Text(
+                                  group['icon'],
+                                  style: const TextStyle(fontSize: 24),
+                                )
+                              : const Icon(
+                                  Icons.group_work,
+                                  color: AppTheme.primary,
+                                  size: 24,
+                                ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -257,41 +313,62 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                               Row(
                                 children: [
                                   Expanded(
-                                  child: Text(
-                                    group['name'] ?? 'Unnamed Group',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                    child: Text(
+                                      group['name'] ?? 'Unnamed Group',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
                                   ),
-                                ),
                                   if (!isActive)
                                     _buildStatusBadge('Inactive', Colors.grey)
                                   else if (budget > 0)
                                     _buildStatusBadge(
                                       isOverBudget ? 'Over Budget' : 'On Track',
-                                      isOverBudget ? AppTheme.danger : AppTheme.success,
+                                      isOverBudget
+                                          ? AppTheme.danger
+                                          : AppTheme.success,
                                     ),
                                 ],
                               ),
-                                if (group['description'] != null && group['description'].isNotEmpty)
-                                  Text(
-                                    group['description'],
-                                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                              if (group['description'] != null &&
+                                  group['description'].isNotEmpty)
+                                Text(
+                                  group['description'],
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
                                   ),
-                                if (group['start_date'] != null || group['end_date'] != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4, bottom: 4),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.calendar_today_outlined, size: 11, color: Colors.grey[400]),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'])) : "..."}'
-                                          ' - '
-                                          '${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'])) : "..."}',
-                                          style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w400),
+                                ),
+                              if (group['start_date'] != null ||
+                                  group['end_date'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 4,
+                                    bottom: 4,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 11,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'])) : "..."}'
+                                        ' - '
+                                        '${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'])) : "..."}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w400,
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
+                                ),
                             ],
                           ),
                         ),
@@ -303,12 +380,21 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Spending Progress', style: TextStyle(color: Colors.grey[700], fontSize: 13, fontWeight: FontWeight.w500)),
+                          Text(
+                            'Spending Progress',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                           Text(
                             '$currency${(spent / maskingFactor).toStringAsFixed(0)} / $currency${(budget / maskingFactor).toStringAsFixed(0)}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: isOverBudget ? AppTheme.danger : AppTheme.primary,
+                              color: isOverBudget
+                                  ? AppTheme.danger
+                                  : AppTheme.primary,
                             ),
                           ),
                         ],
@@ -319,16 +405,32 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
                         child: LinearProgressIndicator(
                           value: progress,
                           minHeight: 8,
-                          backgroundColor: (isOverBudget ? AppTheme.danger : AppTheme.primary).withOpacity(0.1),
-                          valueColor: AlwaysStoppedAnimation<Color>(isOverBudget ? AppTheme.danger : AppTheme.primary),
+                          backgroundColor:
+                              (isOverBudget
+                                      ? AppTheme.danger
+                                      : AppTheme.primary)
+                                  .withValues(alpha: 0.1),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isOverBudget ? AppTheme.danger : AppTheme.primary,
+                          ),
                         ),
                       ),
                     ] else ...[
                       Row(
                         children: [
-                          const Icon(Icons.wallet, size: 14, color: Colors.grey),
+                          const Icon(
+                            Icons.wallet,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 4),
-                          Text('Total Spent: $currency${(spent / maskingFactor).toStringAsFixed(0)}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text(
+                            'Total Spent: $currency${(spent / maskingFactor).toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -342,18 +444,28 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
     );
   }
 
-  void _showDeleteConfirm(BuildContext context, dynamic group, GoalsService service) {
+  void _showDeleteConfirm(
+    BuildContext context,
+    dynamic group,
+    GoalsService service,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Group?'),
         content: Text('Are you sure you want to delete "${group['name']}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
-              final success = await service.deleteExpenseGroup(group['id'].toString());
-              if (success && mounted) Navigator.pop(context);
+              final success = await service.deleteExpenseGroup(
+                group['id'].toString(),
+              );
+              if (!context.mounted) return;
+              if (success) Navigator.pop(context);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -366,13 +478,18 @@ class _ExpenseGroupsScreenState extends State<ExpenseGroupsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         text.toUpperCase(),
-        style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+        style: TextStyle(
+          fontSize: 9,
+          color: color,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }

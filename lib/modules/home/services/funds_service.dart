@@ -25,7 +25,7 @@ class FundsService extends ChangeNotifier {
   // Filter State
   String? _selectedMemberId;
   String? get selectedMemberId => _selectedMemberId;
-  
+
   String get _cacheKey => 'cached_portfolio_${_selectedMemberId ?? 'all'}';
 
   FundsService(this._config, this._auth) {
@@ -63,17 +63,19 @@ class FundsService extends ChangeNotifier {
 
   Future<void> fetchFunds() async {
     if (_auth.accessToken == null) return;
-    
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/funds')
-           .replace(queryParameters: {
-             if (_selectedMemberId != null) 'member_id': _selectedMemberId,
-           });
-           
+          .replace(
+            queryParameters: {
+              if (_selectedMemberId != null) 'member_id': _selectedMemberId,
+            },
+          );
+
       final response = await http.get(
         url,
         headers: {
@@ -104,8 +106,13 @@ class FundsService extends ChangeNotifier {
   Future<void> fetchSyncStatus() async {
     if (_auth.accessToken == null) return;
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/finance/mutual-funds/sync/status');
-      final response = await http.get(url, headers: {'Authorization': 'Bearer ${_auth.accessToken}'});
+      final url = Uri.parse(
+        '${_config.backendUrl}/api/v1/finance/mutual-funds/sync/status',
+      );
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
+      );
       if (response.statusCode == 200) {
         _syncStatus = jsonDecode(response.body);
         notifyListeners();
@@ -118,8 +125,13 @@ class FundsService extends ChangeNotifier {
   Future<void> triggerSync() async {
     if (_auth.accessToken == null) return;
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/finance/mutual-funds/sync/refresh');
-      final response = await http.post(url, headers: {'Authorization': 'Bearer ${_auth.accessToken}'});
+      final url = Uri.parse(
+        '${_config.backendUrl}/api/v1/finance/mutual-funds/sync/refresh',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
+      );
       if (response.statusCode == 200) {
         await fetchSyncStatus();
       }
@@ -136,18 +148,22 @@ class FundsService extends ChangeNotifier {
 
   Future<void> fetchPerformance() async {
     if (_auth.accessToken == null) return;
-    
+
     _isChartLoading = true;
     notifyListeners();
 
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/finance/mutual-funds/analytics/performance-timeline')
-           .replace(queryParameters: {
-             'period': '1y',
-             'granularity': '1w',
-             if (_selectedMemberId != null) 'user_id': _selectedMemberId,
-           });
-           
+      final url =
+          Uri.parse(
+            '${_config.backendUrl}/api/v1/finance/mutual-funds/analytics/performance-timeline',
+          ).replace(
+            queryParameters: {
+              'period': '1y',
+              'granularity': '1w',
+              if (_selectedMemberId != null) 'user_id': _selectedMemberId,
+            },
+          );
+
       final response = await http.get(
         url,
         headers: {
@@ -161,7 +177,7 @@ class FundsService extends ChangeNotifier {
         if (data is Map && data['timeline'] != null) {
           _timeline = List<Map<String, dynamic>>.from(data['timeline']);
         } else if (data is List) {
-           _timeline = List<Map<String, dynamic>>.from(data);
+          _timeline = List<Map<String, dynamic>>.from(data);
         }
       }
     } catch (e) {

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/errors/either.dart';
 import 'package:mobile_app/core/errors/failures.dart';
@@ -12,7 +11,7 @@ mixin NetworkResilience {
     int maxRetries = 2,
   }) async {
     int retries = 0;
-    
+
     while (true) {
       try {
         final response = await call().timeout(const Duration(seconds: 15));
@@ -23,7 +22,7 @@ mixin NetworkResilience {
             return const Left(ValidationFailure('Parsing error'));
           }
         }
-        
+
         if (response.statusCode == 401 || response.statusCode == 403) {
           return const Left(SecurityFailure('Unauthorized access'));
         }
@@ -34,11 +33,12 @@ mixin NetworkResilience {
             await Future.delayed(Duration(seconds: retries * 2));
             continue;
           }
-          return ServerFailure('Server error: ${response.statusCode}') as Left<Failure, T>;
+          return ServerFailure('Server error: ${response.statusCode}')
+              as Left<Failure, T>;
         }
 
-        return ServerFailure('Error: ${response.statusCode}') as Left<Failure, T>;
-
+        return ServerFailure('Error: ${response.statusCode}')
+            as Left<Failure, T>;
       } on SocketException {
         if (retries < maxRetries) {
           retries++;

@@ -37,19 +37,23 @@ class _GoalsScreenState extends State<GoalsScreen> {
         child: goalsService.isLoading && goalsService.goals.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : goalsService.error != null
-                ? SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.7,
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Text(goalsService.error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-                        ),
+            ? SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        goalsService.error!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                  )
-                : _buildInvestmentGoalsList(goalsService, goalsService.goals),
+                  ),
+                ),
+              )
+            : _buildInvestmentGoalsList(goalsService, goalsService.goals),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddGoalDialog(context),
@@ -70,17 +74,26 @@ class _GoalsScreenState extends State<GoalsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Goal Name')),
             TextField(
-              controller: targetController, 
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Goal Name'),
+            ),
+            TextField(
+              controller: targetController,
               decoration: const InputDecoration(labelText: 'Target Amount'),
               keyboardType: TextInputType.number,
             ),
-            TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description')),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               final service = context.read<GoalsService>();
@@ -89,7 +102,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 'target_amount': double.tryParse(targetController.text) ?? 0,
                 'description': descriptionController.text,
               });
-              if (success && mounted) Navigator.pop(context);
+              if (!context.mounted) return;
+              if (success) Navigator.pop(context);
             },
             child: const Text('Create'),
           ),
@@ -108,13 +122,25 @@ class _GoalsScreenState extends State<GoalsScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.track_changes, size: 80, color: AppTheme.primary.withOpacity(0.2)),
+                Icon(
+                  Icons.track_changes,
+                  size: 80,
+                  color: AppTheme.primary.withValues(alpha: 0.2),
+                ),
                 const SizedBox(height: 24),
-                Text('No investment goals found', 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+                Text(
+                  'No investment goals found',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                  ),
+                ),
                 const SizedBox(height: 8),
-                const Text('Plan for your future by setting goals', 
-                  style: TextStyle(color: Colors.grey)),
+                const Text(
+                  'Plan for your future by setting goals',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -131,17 +157,19 @@ class _GoalsScreenState extends State<GoalsScreen> {
       itemCount: goals.length,
       itemBuilder: (context, index) {
         final goal = goals[index];
-        final double current = double.tryParse(goal['current_amount']?.toString() ?? '0') ?? 0.0;
-        final double target = double.tryParse(goal['target_amount']?.toString() ?? '0') ?? 1.0;
+        final double current =
+            double.tryParse(goal['current_amount']?.toString() ?? '0') ?? 0.0;
+        final double target =
+            double.tryParse(goal['target_amount']?.toString() ?? '0') ?? 1.0;
         final progress = (current / target).clamp(0.0, 1.0);
         final percentage = (progress * 100).toStringAsFixed(1);
-        
+
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+            side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
           ),
           child: InkWell(
             onTap: () {
@@ -164,10 +192,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.1),
+                          color: AppTheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.rocket_launch_outlined, color: AppTheme.primary, size: 24),
+                        child: const Icon(
+                          Icons.rocket_launch_outlined,
+                          color: AppTheme.primary,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -180,18 +212,28 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                 Expanded(
                                   child: Text(
                                     goal['name'] ?? 'Unnamed Goal',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
                                   ),
                                 ),
-                                _buildStatusBadge('$percentage%', AppTheme.primary),
+                                _buildStatusBadge(
+                                  '$percentage%',
+                                  AppTheme.primary,
+                                ),
                               ],
                             ),
-                            if (goal['description'] != null && goal['description'].isNotEmpty)
+                            if (goal['description'] != null &&
+                                goal['description'].isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
                                   goal['description'],
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -205,10 +247,20 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Target Progress', style: TextStyle(color: Colors.grey[700], fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text(
+                        'Target Progress',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       Text(
                         '$currency${(current / maskingFactor).toStringAsFixed(0)} / $currency${(target / maskingFactor).toStringAsFixed(0)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -218,7 +270,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       backgroundColor: Colors.grey[100],
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppTheme.primary,
+                      ),
                       minHeight: 8,
                     ),
                   ),
@@ -235,28 +289,40 @@ class _GoalsScreenState extends State<GoalsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         text,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 
-  void _showDeleteConfirm(BuildContext context, dynamic goal, GoalsService service) {
+  void _showDeleteConfirm(
+    BuildContext context,
+    dynamic goal,
+    GoalsService service,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Goal?'),
         content: Text('Are you sure you want to delete "${goal['name']}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               final success = await service.deleteGoal(goal['id'].toString());
-              if (success && mounted) Navigator.pop(context);
+              if (!context.mounted) return;
+              if (success) Navigator.pop(context);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),

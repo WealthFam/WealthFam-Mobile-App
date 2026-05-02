@@ -15,16 +15,17 @@ class ManageGroupTransactionsScreen extends StatefulWidget {
   const ManageGroupTransactionsScreen({super.key, required this.group});
 
   @override
-  State<ManageGroupTransactionsScreen> createState() => _ManageGroupTransactionsScreenState();
+  State<ManageGroupTransactionsScreen> createState() =>
+      _ManageGroupTransactionsScreenState();
 }
 
-class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsScreen> {
+class _ManageGroupTransactionsScreenState
+    extends State<ManageGroupTransactionsScreen> {
   List<dynamic> _allTransactions = [];
   Set<String> _selectedIds = {};
   Set<String> _initialSelectedIds = {};
   bool _isLoading = true;
   bool _isSaving = false;
-  String? _error;
   String _searchQuery = '';
   String? _filterCategory;
   String? _filterAccount;
@@ -39,16 +40,13 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
   Future<void> _fetchEligibleTransactions() async {
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
     final config = context.read<AppConfig>();
     final auth = context.read<AuthService>();
 
     try {
-      final queryParams = {
-        'page_size': '500',
-      };
+      final queryParams = {'page_size': '500'};
 
       if (widget.group['start_date'] != null) {
         queryParams['start_date'] = widget.group['start_date'];
@@ -57,7 +55,9 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
         queryParams['end_date'] = widget.group['end_date'];
       }
 
-      final url = Uri.parse('${config.backendUrl}/api/v1/mobile/transactions').replace(queryParameters: queryParams);
+      final url = Uri.parse(
+        '${config.backendUrl}/api/v1/mobile/transactions',
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(
         url,
@@ -67,7 +67,7 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> items = data['data'];
-        
+
         final Set<String> selected = {};
         for (var item in items) {
           final gid = item['expense_group_id']?.toString();
@@ -84,13 +84,11 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
         });
       } else {
         setState(() {
-          _error = 'Failed to load transactions';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = 'Error: $e';
         _isLoading = false;
       });
     }
@@ -109,7 +107,9 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
 
       if (toLink.isNotEmpty) {
         await http.post(
-          Uri.parse('${config.backendUrl}/api/v1/mobile/expense-groups/$groupId/link'),
+          Uri.parse(
+            '${config.backendUrl}/api/v1/mobile/expense-groups/$groupId/link',
+          ),
           headers: {
             'Authorization': 'Bearer ${auth.accessToken}',
             'Content-Type': 'application/json',
@@ -120,7 +120,9 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
 
       if (toUnlink.isNotEmpty) {
         await http.post(
-          Uri.parse('${config.backendUrl}/api/v1/mobile/expense-groups/$groupId/unlink'),
+          Uri.parse(
+            '${config.backendUrl}/api/v1/mobile/expense-groups/$groupId/unlink',
+          ),
           headers: {
             'Authorization': 'Bearer ${auth.accessToken}',
             'Content-Type': 'application/json',
@@ -134,7 +136,9 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -147,36 +151,49 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
     final currency = context.read<DashboardService>().currencySymbol;
     final maskingFactor = context.read<DashboardService>().maskingFactor;
 
-    final categories = _allTransactions
-        .map((t) => t['category']?.toString() ?? 'Uncategorized')
-        .toSet()
-        .toList()
-      ..sort();
+    final categories =
+        _allTransactions
+            .map((t) => t['category']?.toString() ?? 'Uncategorized')
+            .toSet()
+            .toList()
+          ..sort();
 
-    final accounts = _allTransactions
-        .map((t) => t['account_name']?.toString() ?? 'Unknown Account')
-        .toSet()
-        .toList()
-      ..sort();
+    final accounts =
+        _allTransactions
+            .map((t) => t['account_name']?.toString() ?? 'Unknown Account')
+            .toSet()
+            .toList()
+          ..sort();
 
     final filtered = _allTransactions.where((txn) {
       if (_searchQuery.isNotEmpty) {
         final desc = (txn['description'] ?? '').toString().toLowerCase();
         final acc = (txn['account_name'] ?? '').toString().toLowerCase();
-        if (!desc.contains(_searchQuery.toLowerCase()) && !acc.contains(_searchQuery.toLowerCase())) {
+        if (!desc.contains(_searchQuery.toLowerCase()) &&
+            !acc.contains(_searchQuery.toLowerCase())) {
           return false;
         }
       }
 
-      if (_filterCategory != null && txn['category'] != _filterCategory) return false;
-      if (_filterAccount != null && txn['account_name'] != _filterAccount) return false;
-      if (_showLinkedOnly && !_selectedIds.contains(txn['id'].toString())) return false;
+      if (_filterCategory != null && txn['category'] != _filterCategory) {
+        return false;
+      }
+      if (_filterAccount != null && txn['account_name'] != _filterAccount) {
+        return false;
+      }
+      if (_showLinkedOnly && !_selectedIds.contains(txn['id'].toString())) {
+        return false;
+      }
 
       return true;
     }).toList();
 
-    final pinned = filtered.where((t) => _selectedIds.contains(t['id'].toString())).toList();
-    final available = filtered.where((t) => !_selectedIds.contains(t['id'].toString())).toList();
+    final pinned = filtered
+        .where((t) => _selectedIds.contains(t['id'].toString()))
+        .toList();
+    final available = filtered
+        .where((t) => !_selectedIds.contains(t['id'].toString()))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -185,28 +202,45 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
           if (!_isLoading)
             IconButton(
               onPressed: _isSaving ? null : _saveChanges,
-              icon: _isSaving 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.check_circle_outline, color: AppTheme.primary),
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(
+                      Icons.check_circle_outline,
+                      color: AppTheme.primary,
+                    ),
               tooltip: 'Save linkage',
             ),
         ],
       ),
-      body: _isLoading 
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 _buildAdvancedFilters(theme, categories, accounts),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Showing transactions from ${widget.group['start_date'] != null ? DateFormat('MMM d').format(DateTime.parse(widget.group['start_date'])) : "..."} to ${widget.group['end_date'] != null ? DateFormat('MMM d').format(DateTime.parse(widget.group['end_date'])) : "..."}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ),
                     ],
@@ -217,12 +251,25 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
                   child: ListView(
                     children: [
                       if (pinned.isNotEmpty) ...[
-                        _buildSectionHeader('SELECTED (${pinned.length})', AppTheme.primary),
-                        ...pinned.map((txn) => _buildTxnTile(txn, currency, maskingFactor, true)),
+                        _buildSectionHeader(
+                          'SELECTED (${pinned.length})',
+                          AppTheme.primary,
+                        ),
+                        ...pinned.map(
+                          (txn) =>
+                              _buildTxnTile(txn, currency, maskingFactor, true),
+                        ),
                       ],
                       if (available.isNotEmpty) ...[
                         _buildSectionHeader('AVAILABLE', Colors.grey),
-                        ...available.map((txn) => _buildTxnTile(txn, currency, maskingFactor, false)),
+                        ...available.map(
+                          (txn) => _buildTxnTile(
+                            txn,
+                            currency,
+                            maskingFactor,
+                            false,
+                          ),
+                        ),
                       ],
                       if (pinned.isEmpty && available.isEmpty)
                         Padding(
@@ -230,9 +277,16 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
                           child: Center(
                             child: Column(
                               children: [
-                                Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
+                                Icon(
+                                  Icons.search_off,
+                                  size: 64,
+                                  color: Colors.grey[300],
+                                ),
                                 const SizedBox(height: 16),
-                                Text('No matching transactions', style: TextStyle(color: Colors.grey[600])),
+                                Text(
+                                  'No matching transactions',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
                               ],
                             ),
                           ),
@@ -246,12 +300,22 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
     );
   }
 
-  Widget _buildAdvancedFilters(ThemeData theme, List<String> categories, List<String> accounts) {
+  Widget _buildAdvancedFilters(
+    ThemeData theme,
+    List<String> categories,
+    List<String> accounts,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -261,8 +325,13 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
               hintText: 'Search Description or account...',
               prefixIcon: const Icon(Icons.search),
               isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -297,13 +366,20 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
     );
   }
 
-  Widget _buildFilterDropdown(String label, String? current, List<String> items, Function(String?) onChanged) {
+  Widget _buildFilterDropdown(
+    String label,
+    String? current,
+    List<String> items,
+    Function(String?) onChanged,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: current != null ? AppTheme.primary : Colors.transparent),
+        border: Border.all(
+          color: current != null ? AppTheme.primary : Colors.transparent,
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
@@ -311,8 +387,16 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
           hint: Text(label, style: const TextStyle(fontSize: 12)),
           onChanged: onChanged,
           items: [
-            DropdownMenuItem(value: null, child: Text('All $label', style: const TextStyle(fontSize: 12))),
-            ...items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 12)))),
+            DropdownMenuItem(
+              value: null,
+              child: Text('All $label', style: const TextStyle(fontSize: 12)),
+            ),
+            ...items.map(
+              (i) => DropdownMenuItem(
+                value: i,
+                child: Text(i, style: const TextStyle(fontSize: 12)),
+              ),
+            ),
           ],
         ),
       ),
@@ -324,13 +408,22 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: color,
+          letterSpacing: 1,
+        ),
       ),
     );
   }
 
-  Widget _buildTxnTile(dynamic txn, String currency, double maskingFactor, bool isSelected) {
-    final theme = Theme.of(context);
+  Widget _buildTxnTile(
+    dynamic txn,
+    String currency,
+    double maskingFactor,
+    bool isSelected,
+  ) {
     final id = txn['id'].toString();
     final amount = (txn['amount'] as num).toDouble();
     final date = DateTime.parse(txn['date']).toLocal();
@@ -386,8 +479,12 @@ class _ManageGroupTransactionsScreenState extends State<ManageGroupTransactionsS
               );
           return CircleAvatar(
             radius: 18,
-            backgroundColor: (isSelected ? AppTheme.primary : Colors.grey).withOpacity(0.05),
-            child: Text(matched?.icon ?? '🏷️', style: const TextStyle(fontSize: 16)),
+            backgroundColor: (isSelected ? AppTheme.primary : Colors.grey)
+                .withValues(alpha: 0.05),
+            child: Text(
+              matched?.icon ?? '🏷️',
+              style: const TextStyle(fontSize: 16),
+            ),
           );
         },
       ),

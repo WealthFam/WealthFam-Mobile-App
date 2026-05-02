@@ -22,7 +22,8 @@ class TransactionCategory {
       icon: json['icon'],
       type: json['type'] ?? 'expense',
       parentId: json['parent_id'],
-      subcategories: (json['subcategories'] as List?)
+      subcategories:
+          (json['subcategories'] as List?)
               ?.map((i) => TransactionCategory.fromJson(i))
               .toList() ??
           [],

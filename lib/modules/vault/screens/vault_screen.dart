@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:decimal/decimal.dart';
 
 import 'package:mobile_app/core/theme/app_theme.dart';
 import 'package:mobile_app/modules/vault/services/vault_service.dart';
@@ -67,20 +66,25 @@ class _VaultScreenState extends State<VaultScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         leading: vaultService.canGoBack || vaultService.isSelectionMode
-          ? IconButton(
-              icon: Icon(vaultService.isSelectionMode ? Icons.close : Icons.arrow_back),
-              onPressed: () {
-                if (vaultService.isSelectionMode) {
-                  vaultService.clearSelection();
-                } else {
-                  vaultService.goBack();
-                }
-              },
-            )
-          : const DrawerMenuButton(),
-        title: vaultService.isSelectionMode 
-          ? Text('${vaultService.selectedIds.length} Selected', style: const TextStyle(fontWeight: FontWeight.bold))
-          : _isSearching 
+            ? IconButton(
+                icon: Icon(
+                  vaultService.isSelectionMode ? Icons.close : Icons.arrow_back,
+                ),
+                onPressed: () {
+                  if (vaultService.isSelectionMode) {
+                    vaultService.clearSelection();
+                  } else {
+                    vaultService.goBack();
+                  }
+                },
+              )
+            : const DrawerMenuButton(),
+        title: vaultService.isSelectionMode
+            ? Text(
+                '${vaultService.selectedIds.length} Selected',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              )
+            : _isSearching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
@@ -102,14 +106,14 @@ class _VaultScreenState extends State<VaultScreen> {
           if (vaultService.isSelectionMode) ...[
             IconButton(
               icon: const Icon(Icons.drive_file_move_outlined),
-              onPressed: () => _showMovePicker(context, vaultService.selectedIds.toList()),
+              onPressed: () =>
+                  _showMovePicker(context, vaultService.selectedIds.toList()),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: AppTheme.danger),
               onPressed: () => _handleBulkDelete(context),
             ),
-          ]
-          else ...[
+          ] else ...[
             IconButton(
               icon: Icon(_isSearching ? Icons.close : Icons.search),
               onPressed: () {
@@ -137,22 +141,28 @@ class _VaultScreenState extends State<VaultScreen> {
             _buildFilterBar(vaultService),
             Expanded(
               child: RefreshIndicator(
-              onRefresh: () => vaultService.fetchDocuments(),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: vaultService.isLoading && vaultService.documents.isEmpty
-                    ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
-                    : vaultService.error != null
-                        ? _buildErrorState(vaultService.error!)
-                        : filteredDocs.isEmpty
-                            ? _buildEmptyState()
-                            : KeyedSubtree(
-                                key: ValueKey('${vaultService.currentParentId}_$_isGridView'),
-                                child: _isGridView 
-                                    ? _buildGridView(vaultService, filteredDocs)
-                                    : _buildListView(vaultService, filteredDocs),
-                              ),
-              ),
+                onRefresh: () => vaultService.fetchDocuments(),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child:
+                      vaultService.isLoading && vaultService.documents.isEmpty
+                      ? const Center(
+                          key: ValueKey('loading'),
+                          child: CircularProgressIndicator(),
+                        )
+                      : vaultService.error != null
+                      ? _buildErrorState(vaultService.error!)
+                      : filteredDocs.isEmpty
+                      ? _buildEmptyState()
+                      : KeyedSubtree(
+                          key: ValueKey(
+                            '${vaultService.currentParentId}_$_isGridView',
+                          ),
+                          child: _isGridView
+                              ? _buildGridView(vaultService, filteredDocs)
+                              : _buildListView(vaultService, filteredDocs),
+                        ),
+                ),
               ),
             ),
           ],
@@ -168,7 +178,9 @@ class _VaultScreenState extends State<VaultScreen> {
   void _showAddMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -200,7 +212,7 @@ class _VaultScreenState extends State<VaultScreen> {
     final controller = TextEditingController();
     final service = context.read<VaultService>();
     final messenger = ScaffoldMessenger.of(context);
-    
+
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -211,7 +223,10 @@ class _VaultScreenState extends State<VaultScreen> {
           decoration: const InputDecoration(hintText: 'Folder Name'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               if (controller.text.isNotEmpty) {
@@ -219,7 +234,10 @@ class _VaultScreenState extends State<VaultScreen> {
                 result.fold(
                   (failure) {
                     messenger.showSnackBar(
-                      SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                      SnackBar(
+                        content: Text(failure.message),
+                        backgroundColor: AppTheme.danger,
+                      ),
                     );
                   },
                   (_) {
@@ -237,24 +255,31 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Widget _buildBreadcrumbs(VaultService service) {
     if (service.breadcrumbs.length <= 1) return const SizedBox.shrink();
-    
+
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          ),
+        ),
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: service.breadcrumbs.length,
-        separatorBuilder: (_, __) => const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+        separatorBuilder: (context, index) =>
+            const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
         itemBuilder: (context, index) {
           final crumb = service.breadcrumbs[index];
           final isLast = index == service.breadcrumbs.length - 1;
-          
+
           return TextButton(
-            onPressed: isLast ? null : () => service.navigateToBreadcrumb(index),
+            onPressed: isLast
+                ? null
+                : () => service.navigateToBreadcrumb(index),
             style: TextButton.styleFrom(
               minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -277,17 +302,28 @@ class _VaultScreenState extends State<VaultScreen> {
     final service = context.read<VaultService>();
     final count = service.selectedIds.length;
     final messenger = ScaffoldMessenger.of(context);
-    
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete $count items?'),
-        content: const Text('This action cannot be undone. All selected files and subfolders will be permanently removed.'),
+        content: const Text(
+          'This action cannot be undone. All selected files and subfolders will be permanently removed.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true), 
-            child: const Text('Delete', style: TextStyle(color: AppTheme.danger, fontWeight: FontWeight.bold)),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: AppTheme.danger,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -298,7 +334,10 @@ class _VaultScreenState extends State<VaultScreen> {
       result.fold(
         (failure) {
           messenger.showSnackBar(
-            SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+            SnackBar(
+              content: Text(failure.message),
+              backgroundColor: AppTheme.danger,
+            ),
           );
         },
         (_) {
@@ -316,16 +355,20 @@ class _VaultScreenState extends State<VaultScreen> {
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        children: types.map((type) => Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: FilterChip(
-            selected: vaultService.fileType == type,
-            label: Text(type, style: const TextStyle(fontSize: 10)),
-            onSelected: (selected) {
-              vaultService.setFileType(type);
-            },
-          ),
-        )).toList(),
+        children: types
+            .map(
+              (type) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  selected: vaultService.fileType == type,
+                  label: Text(type, style: const TextStyle(fontSize: 10)),
+                  onSelected: (selected) {
+                    vaultService.setFileType(type);
+                  },
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -343,8 +386,12 @@ class _VaultScreenState extends State<VaultScreen> {
 
       if (result != null && result.files.single.path != null) {
         final file = result.files.single;
-        
-        final metadata = await _showUploadMetadataDialog(context, file.name);
+
+        if (!mounted) return;
+        final metadata = await _showUploadMetadataDialog(
+          this.context,
+          file.name,
+        );
         if (metadata == null) return;
 
         final uploadResult = await service.uploadDocument(
@@ -357,8 +404,11 @@ class _VaultScreenState extends State<VaultScreen> {
 
         uploadResult.fold(
           (failure) {
-             messenger.showSnackBar(
-              SnackBar(content: Text('Upload error: ${failure.message}'), backgroundColor: AppTheme.danger),
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('Upload error: ${failure.message}'),
+                backgroundColor: AppTheme.danger,
+              ),
             );
           },
           (_) {
@@ -371,7 +421,10 @@ class _VaultScreenState extends State<VaultScreen> {
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Upload error: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(
+            content: Text('Upload error: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
       }
     }
@@ -388,7 +441,11 @@ class _VaultScreenState extends State<VaultScreen> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: AppTheme.danger),
             const SizedBox(height: 16),
-            Text(error, style: const TextStyle(color: AppTheme.danger), textAlign: TextAlign.center),
+            Text(
+              error,
+              style: const TextStyle(color: AppTheme.danger),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => context.read<VaultService>().fetchDocuments(),
@@ -410,7 +467,11 @@ class _VaultScreenState extends State<VaultScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.folder_open, size: 80, color: AppTheme.primary.withOpacity(0.2)),
+            Icon(
+              Icons.folder_open,
+              size: 80,
+              color: AppTheme.primary.withValues(alpha: 0.2),
+            ),
             const SizedBox(height: 16),
             const Text(
               'No documents here yet',
@@ -423,22 +484,25 @@ class _VaultScreenState extends State<VaultScreen> {
       ),
     );
   }
-  Map<String, List<VaultDocument>> _getGroupedDocs(List<VaultDocument> documents) {
+
+  Map<String, List<VaultDocument>> _getGroupedDocs(
+    List<VaultDocument> documents,
+  ) {
     if (documents.isEmpty) return {};
-    
+
     // Split folders and files
     final folders = documents.where((d) => d.isFolder).toList();
     final files = documents.where((d) => !d.isFolder).toList();
-    
+
     final Map<String, List<VaultDocument>> grouped = {};
-    
+
     if (folders.isNotEmpty) {
       grouped['Folders'] = folders;
     }
-    
+
     // Sort files by date descending
     files.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+
     for (var doc in files) {
       final key = DateFormat('MMMM yyyy').format(doc.createdAt);
       if (!grouped.containsKey(key)) {
@@ -446,7 +510,7 @@ class _VaultScreenState extends State<VaultScreen> {
       }
       grouped[key]!.add(doc);
     }
-    
+
     return grouped;
   }
 
@@ -458,7 +522,9 @@ class _VaultScreenState extends State<VaultScreen> {
       child: Row(
         children: [
           Icon(
-            title == 'Folders' ? Icons.folder_open : Icons.calendar_today_outlined,
+            title == 'Folders'
+                ? Icons.folder_open
+                : Icons.calendar_today_outlined,
             size: 14,
             color: AppTheme.primary,
           ),
@@ -469,12 +535,15 @@ class _VaultScreenState extends State<VaultScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.5,
-              color: AppTheme.primary.withOpacity(0.8),
+              color: AppTheme.primary.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Divider(color: AppTheme.primary.withOpacity(0.1), thickness: 1),
+            child: Divider(
+              color: AppTheme.primary.withValues(alpha: 0.1),
+              thickness: 1,
+            ),
           ),
         ],
       ),
@@ -499,7 +568,8 @@ class _VaultScreenState extends State<VaultScreen> {
                 childAspectRatio: 0.82,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildDocCard(grouped[key]![index], service),
+                (context, index) =>
+                    _buildDocCard(grouped[key]![index], service),
                 childCount: grouped[key]!.length,
               ),
             ),
@@ -520,13 +590,13 @@ class _VaultScreenState extends State<VaultScreen> {
       itemBuilder: (context, index) {
         final key = keys[index];
         final sectionDocs = grouped[key]!;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildSectionHeader(key),
-            ...sectionDocs.map((doc) => _buildDocTile(doc, service)).toList(),
+            ...sectionDocs.map((doc) => _buildDocTile(doc, service)),
           ],
         );
       },
@@ -536,17 +606,27 @@ class _VaultScreenState extends State<VaultScreen> {
   Widget _buildDocTile(VaultDocument doc, VaultService service) {
     final isSelected = service.selectedIds.contains(doc.id);
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primary.withOpacity(0.08) : theme.colorScheme.surface,
+        color: isSelected
+            ? AppTheme.primary.withValues(alpha: 0.08)
+            : theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: isSelected ? [] : [
-           BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))
-        ],
+        boxShadow: isSelected
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
         border: Border.all(
-          color: isSelected ? AppTheme.primary : theme.dividerColor.withOpacity(0.05),
+          color: isSelected
+              ? AppTheme.primary
+              : theme.dividerColor.withValues(alpha: 0.05),
           width: isSelected ? 1.5 : 1,
         ),
       ),
@@ -562,20 +642,42 @@ class _VaultScreenState extends State<VaultScreen> {
         onLongPress: () => service.toggleSelection(doc.id),
         leading: _buildFileIcon(doc, service, size: 44),
         title: Text(
-          doc.filename, 
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: -0.2),
+          doc.filename,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 13,
+            letterSpacing: -0.2,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Row(
           children: [
             Text(
-              doc.isFolder ? 'Folder' : (doc.linkedTransaction != null ? doc.linkedTransaction!.description : doc.fileType),
-              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), fontWeight: FontWeight.bold),
+              doc.isFolder
+                  ? 'Folder'
+                  : (doc.linkedTransaction != null
+                        ? doc.linkedTransaction!.description
+                        : doc.fileType),
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             if (!doc.isFolder) ...[
               const Text(' • ', style: TextStyle(color: Colors.grey)),
-              Text(doc.formattedSize, style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5))),
+              Text(
+                doc.formattedSize,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
+                ),
+              ),
             ],
           ],
         ),
@@ -586,12 +688,16 @@ class _VaultScreenState extends State<VaultScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.12),
+                  color: AppTheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '₹${doc.linkedTransaction!.amount.toStringAsFixed(0)}',
-                  style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900, fontSize: 11),
+                  style: const TextStyle(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             if (service.isSelectionMode)
@@ -599,11 +705,17 @@ class _VaultScreenState extends State<VaultScreen> {
                 value: isSelected,
                 onChanged: (_) => service.toggleSelection(doc.id),
                 activeColor: AppTheme.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
               )
             else
               IconButton(
-                icon: const Icon(Icons.more_vert, size: 20, color: Colors.black38),
+                icon: const Icon(
+                  Icons.more_vert,
+                  size: 20,
+                  color: Colors.black38,
+                ),
                 onPressed: () => _showActionSheet(doc, service),
               ),
           ],
@@ -615,14 +727,16 @@ class _VaultScreenState extends State<VaultScreen> {
   Widget _buildDocCard(VaultDocument doc, VaultService service) {
     final theme = Theme.of(context);
     final isSelected = service.selectedIds.contains(doc.id);
-    
+
     return Card(
       elevation: isSelected ? 12 : 0,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isSelected ? AppTheme.primary : theme.dividerColor.withOpacity(0.1),
+          color: isSelected
+              ? AppTheme.primary
+              : theme.dividerColor.withValues(alpha: 0.1),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -637,17 +751,23 @@ class _VaultScreenState extends State<VaultScreen> {
         onLongPress: () => service.toggleSelection(doc.id),
         child: Container(
           decoration: BoxDecoration(
-            gradient: isSelected 
-              ? LinearGradient(
-                  colors: [AppTheme.primary.withOpacity(0.1), AppTheme.primary.withOpacity(0.05)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : LinearGradient(
-                  colors: [theme.colorScheme.surface, theme.colorScheme.surface.withOpacity(0.8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: [
+                      AppTheme.primary.withValues(alpha: 0.1),
+                      AppTheme.primary.withValues(alpha: 0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : LinearGradient(
+                    colors: [
+                      theme.colorScheme.surface,
+                      theme.colorScheme.surface.withValues(alpha: 0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -665,13 +785,20 @@ class _VaultScreenState extends State<VaultScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(4),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)],
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
                           child: Checkbox(
                             value: isSelected,
                             onChanged: (_) => service.toggleSelection(doc.id),
                             activeColor: AppTheme.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
                         ),
                       ),
@@ -680,7 +807,11 @@ class _VaultScreenState extends State<VaultScreen> {
                         top: 4,
                         right: 4,
                         child: IconButton(
-                          icon: const Icon(Icons.more_vert, size: 20, color: Colors.black45),
+                          icon: const Icon(
+                            Icons.more_vert,
+                            size: 20,
+                            color: Colors.black45,
+                          ),
                           onPressed: () => _showActionSheet(doc, service),
                         ),
                       ),
@@ -689,21 +820,37 @@ class _VaultScreenState extends State<VaultScreen> {
                         bottom: 8,
                         right: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppTheme.primary,
                             borderRadius: BorderRadius.circular(10),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)],
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.receipt_long_outlined, size: 10, color: Colors.white),
+                              const Icon(
+                                Icons.receipt_long_outlined,
+                                size: 10,
+                                color: Colors.white,
+                              ),
                               if (doc.linkedTransaction != null) ...[
                                 const SizedBox(width: 4),
                                 Text(
                                   '₹${doc.linkedTransaction!.amount.toStringAsFixed(0)}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ],
                             ],
@@ -715,7 +862,9 @@ class _VaultScreenState extends State<VaultScreen> {
               ),
               Container(
                 padding: const EdgeInsets.all(12.0),
-                color: theme.colorScheme.surface.withOpacity(isSelected ? 0.0 : 0.8),
+                color: theme.colorScheme.surface.withValues(
+                  alpha: isSelected ? 0.0 : 0.8,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -723,27 +872,38 @@ class _VaultScreenState extends State<VaultScreen> {
                       doc.filename,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: -0.3),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          doc.isFolder 
-                            ? 'Folder' 
-                            : (doc.linkedTransaction != null ? doc.linkedTransaction!.description : doc.fileType),
+                          doc.isFolder
+                              ? 'Folder'
+                              : (doc.linkedTransaction != null
+                                    ? doc.linkedTransaction!.description
+                                    : doc.fileType),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), 
-                            fontSize: 10, 
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.7),
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
                           DateFormat('dd MMM').format(doc.createdAt),
-                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5), fontSize: 9),
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.5),
+                            fontSize: 9,
+                          ),
                         ),
                       ],
                     ),
@@ -757,9 +917,13 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  Widget _buildFileIcon(VaultDocument doc, VaultService service, {required double size}) {
+  Widget _buildFileIcon(
+    VaultDocument doc,
+    VaultService service, {
+    required double size,
+  }) {
     Widget content;
-    
+
     if (doc.isFolder) {
       content = Icon(Icons.folder, size: size, color: Colors.amber);
     } else if (doc.thumbnailPath != null) {
@@ -769,27 +933,24 @@ class _VaultScreenState extends State<VaultScreen> {
           service.getThumbnailUrl(doc.id),
           headers: service.authHeaders,
           fit: BoxFit.cover,
-          errorBuilder: (context, _, __) => _buildPlaceholder(doc, size),
+          errorBuilder: (context, error, stackTrace) =>
+              _buildPlaceholder(doc, size),
         ),
       );
     } else {
       content = _buildPlaceholder(doc, size);
     }
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: content,
-    );
+    return SizedBox(width: size, height: size, child: content);
   }
 
   Widget _buildPlaceholder(VaultDocument doc, double size) {
     IconData icon;
     Color color;
-    
+
     final type = doc.fileType.toUpperCase();
     final mime = doc.mimeType?.toLowerCase() ?? '';
-    
+
     if (mime.contains('pdf') || doc.filename.toLowerCase().endsWith('.pdf')) {
       icon = Icons.picture_as_pdf;
       color = Colors.redAccent;
@@ -826,10 +987,10 @@ class _VaultScreenState extends State<VaultScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(icon, size: size * 0.6, color: color.withOpacity(0.8)),
+      child: Icon(icon, size: size * 0.6, color: color.withValues(alpha: 0.8)),
     );
   }
 
@@ -840,6 +1001,7 @@ class _VaultScreenState extends State<VaultScreen> {
       _showActionSheet(doc, service);
     }
   }
+
   void _showActionSheet(VaultDocument doc, VaultService service) {
     final messenger = ScaffoldMessenger.of(context);
     showModalBottomSheet(
@@ -858,18 +1020,28 @@ class _VaultScreenState extends State<VaultScreen> {
             builder: (context, latestService, _) {
               // Find the latest version of this document to show updates (e.g. after linking)
               final latestDoc = latestService.documents.firstWhere(
-                (d) => d.id == doc.id, 
+                (d) => d.id == doc.id,
                 orElse: () => doc,
               );
-              
+
               return ListView(
                 controller: scrollController,
                 shrinkWrap: true,
                 children: [
                   ListTile(
                     leading: _buildFileIcon(latestDoc, latestService, size: 32),
-                    title: Text(latestDoc.filename, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                    subtitle: Text(latestDoc.isFolder ? 'Folder' : '${latestDoc.fileType} • ${latestDoc.formattedSize}'),
+                    title: Text(
+                      latestDoc.filename,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Text(
+                      latestDoc.isFolder
+                          ? 'Folder'
+                          : '${latestDoc.fileType} • ${latestDoc.formattedSize}',
+                    ),
                   ),
                   if (latestDoc.linkedTransaction != null) ...[
                     const Divider(indent: 16, endIndent: 16),
@@ -890,11 +1062,16 @@ class _VaultScreenState extends State<VaultScreen> {
                       title: const Text('Download'),
                       onTap: () async {
                         Navigator.pop(context);
-                        final result = await latestService.saveDocument(latestDoc);
+                        final result = await latestService.saveDocument(
+                          latestDoc,
+                        );
                         result.fold(
                           (failure) {
                             messenger.showSnackBar(
-                              SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                              SnackBar(
+                                content: Text(failure.message),
+                                backgroundColor: AppTheme.danger,
+                              ),
                             );
                           },
                           (path) {
@@ -928,14 +1105,26 @@ class _VaultScreenState extends State<VaultScreen> {
                     },
                   ),
                   ListTile(
-                    leading: Icon(latestDoc.linkedTransaction != null ? Icons.link_off : Icons.link),
-                    title: Text(latestDoc.linkedTransaction != null ? 'Unlink Transaction' : 'Link to Transaction'),
+                    leading: Icon(
+                      latestDoc.linkedTransaction != null
+                          ? Icons.link_off
+                          : Icons.link,
+                    ),
+                    title: Text(
+                      latestDoc.linkedTransaction != null
+                          ? 'Unlink Transaction'
+                          : 'Link to Transaction',
+                    ),
                     onTap: () {
                       Navigator.pop(context);
                       if (latestDoc.linkedTransaction != null) {
                         latestService.linkTransaction(latestDoc.id, null);
                       } else {
-                        _showTransactionPicker(context, latestDoc.id, latestService);
+                        _showTransactionPicker(
+                          context,
+                          latestDoc.id,
+                          latestService,
+                        );
                       }
                     },
                   ),
@@ -948,29 +1137,48 @@ class _VaultScreenState extends State<VaultScreen> {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.delete_outline, color: AppTheme.danger),
-                    title: const Text('Delete', style: TextStyle(color: AppTheme.danger)),
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: AppTheme.danger,
+                    ),
+                    title: const Text(
+                      'Delete',
+                      style: TextStyle(color: AppTheme.danger),
+                    ),
                     onTap: () async {
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('Delete?'),
-                          content: Text('Are you sure you want to delete ${latestDoc.filename}?'),
+                          content: Text(
+                            'Are you sure you want to delete ${latestDoc.filename}?',
+                          ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
                             TextButton(
-                              onPressed: () => Navigator.pop(context, true), 
-                              child: const Text('Delete', style: TextStyle(color: AppTheme.danger)),
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text(
+                                'Delete',
+                                style: TextStyle(color: AppTheme.danger),
+                              ),
                             ),
                           ],
                         ),
                       );
                       if (confirm == true) {
-                        final result = await latestService.deleteDocument(latestDoc.id);
+                        final result = await latestService.deleteDocument(
+                          latestDoc.id,
+                        );
                         result.fold(
                           (failure) {
                             messenger.showSnackBar(
-                              SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                              SnackBar(
+                                content: Text(failure.message),
+                                backgroundColor: AppTheme.danger,
+                              ),
                             );
                           },
                           (_) {
@@ -991,8 +1199,11 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Widget _buildVaultSummary(VaultService service) {
     if (_isSearching) return const SizedBox.shrink();
-    
-    final totalSize = service.documents.fold<double>(0, (sum, doc) => sum + doc.fileSize);
+
+    final totalSize = service.documents.fold<double>(
+      0,
+      (sum, doc) => sum + doc.fileSize,
+    );
     final fileCount = service.documents.where((d) => !d.isFolder).length;
     final folderCount = service.documents.where((d) => d.isFolder).length;
 
@@ -1000,18 +1211,28 @@ class _VaultScreenState extends State<VaultScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primary.withOpacity(0.1), AppTheme.primary.withOpacity(0.0)],
+          colors: [
+            AppTheme.primary.withValues(alpha: 0.1),
+            AppTheme.primary.withValues(alpha: 0.0),
+          ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
       ),
       child: Row(
         children: [
-          _buildSummaryItem(Icons.insert_drive_file_outlined, '$fileCount Files'),
+          _buildSummaryItem(
+            Icons.insert_drive_file_outlined,
+            '$fileCount Files',
+          ),
           const SizedBox(width: 16),
           _buildSummaryItem(Icons.folder_outlined, '$folderCount Folders'),
           const Spacer(),
-          _buildSummaryItem(Icons.storage, _formatSize(totalSize), color: AppTheme.primary),
+          _buildSummaryItem(
+            Icons.storage,
+            _formatSize(totalSize),
+            color: AppTheme.primary,
+          ),
         ],
       ),
     );
@@ -1022,7 +1243,14 @@ class _VaultScreenState extends State<VaultScreen> {
       children: [
         Icon(icon, size: 14, color: color ?? Colors.grey),
         const SizedBox(width: 4),
-        Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
       ],
     );
   }
@@ -1054,33 +1282,73 @@ class _VaultScreenState extends State<VaultScreen> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const Padding(
               padding: EdgeInsets.all(24),
-              child: Text('Move to Folder', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+              child: Text(
+                'Move to Folder',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
             ),
             Expanded(
               child: ListView(
                 children: [
                   ListTile(
                     leading: const Icon(Icons.home_outlined),
-                    title: const Text('Root Vault', style: TextStyle(fontWeight: FontWeight.bold)),
+                    title: const Text(
+                      'Root Vault',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     onTap: () async {
-                      final result = await service.moveDocuments(docIds, 'ROOT');
-                      if (mounted) Navigator.pop(context);
+                      final navigator = Navigator.of(context);
+                      final result = await service.moveDocuments(
+                        docIds,
+                        'ROOT',
+                      );
+                      if (!mounted) return;
+                      navigator.pop();
                       _handleActionResult(result, 'Moved successfully');
                     },
                   ),
                   const Divider(),
-                  ...service.documents.where((d) => d.isFolder && !docIds.contains(d.id)).map((folder) => ListTile(
-                    leading: const Icon(Icons.folder_outlined, color: Colors.amber),
-                    title: Text(folder.filename, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () async {
-                      final result = await service.moveDocuments(docIds, folder.id);
-                      if (mounted) Navigator.pop(context);
-                      _handleActionResult(result, 'Moved to ${folder.filename}');
-                    },
-                  )),
+                  ...service.documents
+                      .where((d) => d.isFolder && !docIds.contains(d.id))
+                      .map(
+                        (folder) => ListTile(
+                          leading: const Icon(
+                            Icons.folder_outlined,
+                            color: Colors.amber,
+                          ),
+                          title: Text(
+                            folder.filename,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onTap: () async {
+                            final navigator = Navigator.of(context);
+                            final result = await service.moveDocuments(
+                              docIds,
+                              folder.id,
+                            );
+                            if (!mounted) return;
+                            navigator.pop();
+                            _handleActionResult(
+                              result,
+                              'Moved to ${folder.filename}',
+                            );
+                          },
+                        ),
+                      ),
                 ],
               ),
             ),
@@ -1090,7 +1358,11 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  void _showTransactionPicker(BuildContext context, String docId, VaultService service) {
+  void _showTransactionPicker(
+    BuildContext context,
+    String docId,
+    VaultService service,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1104,7 +1376,9 @@ class _VaultScreenState extends State<VaultScreen> {
           builder: (context, scrollController) => Container(
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(25),
+              ),
             ),
             child: Column(
               children: [
@@ -1112,15 +1386,28 @@ class _VaultScreenState extends State<VaultScreen> {
                 Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
-                      const Text('Link Transaction', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                      const Text(
+                        'Link Transaction',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
                       const Spacer(),
-                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
                     ],
                   ),
                 ),
@@ -1136,8 +1423,11 @@ class _VaultScreenState extends State<VaultScreen> {
                                 hintText: 'Search merchant or amount...',
                                 prefixIcon: const Icon(Icons.search),
                                 filled: true,
-                                fillColor: Colors.grey.withOpacity(0.05),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                fillColor: Colors.grey.withValues(alpha: 0.05),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
                               onChanged: (val) {
                                 setPickerState(() => query = val);
@@ -1146,52 +1436,112 @@ class _VaultScreenState extends State<VaultScreen> {
                           ),
                           const SizedBox(height: 16),
                           Expanded(
-                            child: FutureBuilder<Either<Failure, List<dynamic>>>(
-                              key: ValueKey(query), // Force rebuild on query change
-                              future: service.searchTransactions(query: query),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Center(child: CircularProgressIndicator());
-                                }
-                                return snapshot.data?.fold(
-                                  (failure) => Center(child: Text(failure.message)),
-                                  (txns) {
-                                    if (txns.isEmpty) {
-                                      return const Center(child: Text('No transactions found'));
+                            child:
+                                FutureBuilder<Either<Failure, List<dynamic>>>(
+                                  key: ValueKey(
+                                    query,
+                                  ), // Force rebuild on query change
+                                  future: service.searchTransactions(
+                                    query: query,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const Center(
+                                        child: CircularProgressIndicator(),
+                                      );
                                     }
-                                    return ListView.builder(
-                                      controller: scrollController,
-                                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                                      itemCount: txns.length,
-                                      itemBuilder: (context, index) {
-                                        final txn = txns[index];
-                                        return ListTile(
-                                          leading: CircleAvatar(
-                                            backgroundColor: AppTheme.primary.withOpacity(0.1),
-                                            child: Text(
-                                              txn['category'] != null && txn['category'].toString().isNotEmpty 
-                                                ? txn['category'].toString()[0].toUpperCase() 
-                                                : 'T', 
-                                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)
-                                            ),
+                                    return snapshot.data?.fold(
+                                          (failure) => Center(
+                                            child: Text(failure.message),
                                           ),
-                                          title: Text(txn['description'] ?? 'No Description', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                          subtitle: Text(txn['date'] ?? '', style: const TextStyle(fontSize: 10)),
-                                          trailing: Text('₹${txn['amount']}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primary)),
-                                          onTap: () async {
-                                            final result = await service.linkTransaction(docId, txn['id']);
-                                            if (context.mounted) {
-                                              Navigator.pop(context);
-                                              _handleActionResult(result, 'Linked successfully');
+                                          (txns) {
+                                            if (txns.isEmpty) {
+                                              return const Center(
+                                                child: Text(
+                                                  'No transactions found',
+                                                ),
+                                              );
                                             }
+                                            return ListView.builder(
+                                              controller: scrollController,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                  ),
+                                              itemCount: txns.length,
+                                              itemBuilder: (context, index) {
+                                                final txn = txns[index];
+                                                return ListTile(
+                                                  leading: CircleAvatar(
+                                                    backgroundColor: AppTheme
+                                                        .primary
+                                                        .withValues(alpha: 0.1),
+                                                    child: Text(
+                                                      txn['category'] != null &&
+                                                              txn['category']
+                                                                  .toString()
+                                                                  .isNotEmpty
+                                                          ? txn['category']
+                                                                .toString()[0]
+                                                                .toUpperCase()
+                                                          : 'T',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: AppTheme.primary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  title: Text(
+                                                    txn['description'] ??
+                                                        'No Description',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                  subtitle: Text(
+                                                    txn['date'] ?? '',
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                  trailing: Text(
+                                                    '₹${txn['amount']}',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: AppTheme.primary,
+                                                    ),
+                                                  ),
+                                                  onTap: () async {
+                                                    final result = await service
+                                                        .linkTransaction(
+                                                          docId,
+                                                          txn['id'],
+                                                        );
+                                                    if (context.mounted) {
+                                                      Navigator.pop(context);
+                                                      _handleActionResult(
+                                                        result,
+                                                        'Linked successfully',
+                                                      );
+                                                    }
+                                                  },
+                                                );
+                                              },
+                                            );
                                           },
+                                        ) ??
+                                        const Center(
+                                          child: Text(
+                                            'Error loading transactions',
+                                          ),
                                         );
-                                      },
-                                    );
                                   },
-                                ) ?? const Center(child: Text('Error loading transactions'));
-                              },
-                            ),
+                                ),
                           ),
                         ],
                       );
@@ -1206,21 +1556,17 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  Future<void> _handleUnlink(String docId, VaultService service) async {
-    final result = await service.linkTransaction(docId, null);
-    _handleActionResult(result, 'Unlinked successfully');
-  }
-
   void _handleActionResult(Either<Failure, Unit> result, String successMsg) {
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     result.fold(
       (failure) => messenger.showSnackBar(
-        SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+        SnackBar(
+          content: Text(failure.message),
+          backgroundColor: AppTheme.danger,
+        ),
       ),
-      (_) => messenger.showSnackBar(
-        SnackBar(content: Text(successMsg)),
-      ),
+      (_) => messenger.showSnackBar(SnackBar(content: Text(successMsg))),
     );
   }
 
@@ -1228,16 +1574,16 @@ class _VaultScreenState extends State<VaultScreen> {
     final theme = Theme.of(context);
     final dashboard = context.read<DashboardService>();
     final amount = tx.amount.toDouble();
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1255,9 +1601,9 @@ class _VaultScreenState extends State<VaultScreen> {
                 Text(
                   'LINKED TRANSACTION',
                   style: TextStyle(
-                    fontSize: 9, 
-                    fontWeight: FontWeight.w900, 
-                    color: theme.primaryColor, 
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: theme.primaryColor,
                     letterSpacing: 1,
                   ),
                 ),
@@ -1265,11 +1611,16 @@ class _VaultScreenState extends State<VaultScreen> {
             ),
           ),
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 0,
+            ),
             leading: Consumer<CategoriesService>(
               builder: (context, catService, _) {
                 final catNameRaw = tx.category ?? 'Other';
-                final catName = catNameRaw.contains(' › ') ? catNameRaw.split(' › ').last : catNameRaw;
+                final catName = catNameRaw.contains(' › ')
+                    ? catNameRaw.split(' › ').last
+                    : catNameRaw;
                 TransactionCategory? matched;
 
                 for (var parent in catService.categories) {
@@ -1285,22 +1636,23 @@ class _VaultScreenState extends State<VaultScreen> {
                   }
                   if (matched != null) break;
                 }
-                
+
                 return Container(
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.08),
+                    color: theme.primaryColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    matched?.icon ?? (catName.isNotEmpty ? catName[0].toUpperCase() : '?'),
+                    matched?.icon ??
+                        (catName.isNotEmpty ? catName[0].toUpperCase() : '?'),
                     style: TextStyle(
-                      fontSize: 18, 
+                      fontSize: 18,
                       color: theme.primaryColor,
-                      fontWeight: FontWeight.bold
-                    )
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 );
               },
@@ -1313,15 +1665,24 @@ class _VaultScreenState extends State<VaultScreen> {
             ),
             subtitle: Text(
               '${DateFormat('d MMM, h:mm a').format(tx.date)} • ${tx.accountName ?? 'Account'}',
-              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
+                fontWeight: FontWeight.w500,
+              ),
             ),
             trailing: Text(
-              NumberFormat.simpleCurrency(name: 'INR', decimalDigits: 0).format(amount / dashboard.maskingFactor),
+              NumberFormat.simpleCurrency(
+                name: 'INR',
+                decimalDigits: 0,
+              ).format(amount / dashboard.maskingFactor),
               style: TextStyle(
                 color: amount < 0 ? AppTheme.danger : AppTheme.success,
                 fontWeight: FontWeight.w900,
                 fontSize: 14,
-                letterSpacing: -0.5
+                letterSpacing: -0.5,
               ),
             ),
           ),
@@ -1330,10 +1691,13 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  Future<Map<String, String>?> _showUploadMetadataDialog(BuildContext context, String initialName) async {
+  Future<Map<String, String>?> _showUploadMetadataDialog(
+    BuildContext context,
+    String initialName,
+  ) async {
     String type = 'OTHER';
     final controller = TextEditingController(text: initialName);
-    
+
     return showDialog<Map<String, String>>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1349,7 +1713,7 @@ class _VaultScreenState extends State<VaultScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 decoration: const InputDecoration(labelText: 'Document Type'),
                 items: ['OTHER', 'BILL', 'INVOICE', 'POLICY', 'TAX', 'IDENTITY']
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -1359,9 +1723,15 @@ class _VaultScreenState extends State<VaultScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, {'name': controller.text, 'type': type}),
+              onPressed: () => Navigator.pop(context, {
+                'name': controller.text,
+                'type': type,
+              }),
               child: const Text('Proceed'),
             ),
           ],
@@ -1370,7 +1740,10 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  Future<void> _showRenameDialog(BuildContext context, VaultDocument doc) async {
+  Future<void> _showRenameDialog(
+    BuildContext context,
+    VaultDocument doc,
+  ) async {
     final controller = TextEditingController(text: doc.filename);
     String type = doc.fileType.toUpperCase();
     final service = context.read<VaultService>();
@@ -1391,7 +1764,7 @@ class _VaultScreenState extends State<VaultScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 decoration: const InputDecoration(labelText: 'Document Type'),
                 items: ['OTHER', 'BILL', 'INVOICE', 'POLICY', 'TAX', 'IDENTITY']
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -1401,19 +1774,27 @@ class _VaultScreenState extends State<VaultScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 if (controller.text.isNotEmpty) {
                   final result = await service.updateDocumentMetadata(
-                    doc.id, 
-                    newName: controller.text != doc.filename ? controller.text : null,
+                    doc.id,
+                    newName: controller.text != doc.filename
+                        ? controller.text
+                        : null,
                     newType: type != doc.fileType.toUpperCase() ? type : null,
                   );
                   result.fold(
                     (failure) {
                       messenger.showSnackBar(
-                        SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+                        SnackBar(
+                          content: Text(failure.message),
+                          backgroundColor: AppTheme.danger,
+                        ),
                       );
                     },
                     (_) {
@@ -1437,7 +1818,10 @@ class _VaultScreenState extends State<VaultScreen> {
         (failure) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(failure.message), backgroundColor: AppTheme.danger),
+              SnackBar(
+                content: Text(failure.message),
+                backgroundColor: AppTheme.danger,
+              ),
             );
           }
         },
@@ -1448,7 +1832,10 @@ class _VaultScreenState extends State<VaultScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open file: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(
+            content: Text('Could not open file: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
       }
     }
@@ -1472,16 +1859,32 @@ class _VaultScreenState extends State<VaultScreen> {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     const Icon(Icons.info_outline, color: AppTheme.primary),
                     const SizedBox(width: 12),
-                    const Text('Document Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                    const Text(
+                      'Document Details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                     const Spacer(),
-                    IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
                   ],
                 ),
               ),
@@ -1492,19 +1895,38 @@ class _VaultScreenState extends State<VaultScreen> {
                   children: [
                     _buildDetailRow('Filename', doc.filename),
                     _buildDetailRow('Type', doc.fileType),
-                    if (!doc.isFolder) _buildDetailRow('Size', doc.formattedSize),
-                    if (!doc.isFolder) _buildDetailRow('MIME Type', doc.mimeType ?? 'Unknown'),
-                    _buildDetailRow('Created', DateFormat('dd MMM yyyy, h:mm a').format(doc.createdAt)),
+                    if (!doc.isFolder)
+                      _buildDetailRow('Size', doc.formattedSize),
+                    if (!doc.isFolder)
+                      _buildDetailRow('MIME Type', doc.mimeType ?? 'Unknown'),
+                    _buildDetailRow(
+                      'Created',
+                      DateFormat('dd MMM yyyy, h:mm a').format(doc.createdAt),
+                    ),
                     if (doc.description != null && doc.description!.isNotEmpty)
                       _buildDetailRow('Description', doc.description!),
                     if (doc.transactionId != null) ...[
                       const Divider(height: 32),
-                      const Text('LINKED TRANSACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1)),
+                      const Text(
+                        'LINKED TRANSACTION',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.grey,
+                          letterSpacing: 1,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       if (doc.linkedTransaction != null)
                         _buildTransactionInfo(doc.linkedTransaction!)
                       else
-                        const Text('Transaction ID: Linked (Refresh to see details)', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                        const Text(
+                          'Transaction ID: Linked (Refresh to see details)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                     ],
                   ],
                 ),
@@ -1522,9 +1944,20 @@ class _VaultScreenState extends State<VaultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

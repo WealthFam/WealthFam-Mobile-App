@@ -1,12 +1,10 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/models/dashboard_data.dart';
 import 'package:mobile_app/modules/home/models/unparsed_message.dart';
-import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter/widgets.dart';
@@ -15,6 +13,7 @@ import 'package:decimal/decimal.dart';
 import 'package:mobile_app/core/errors/either.dart';
 import 'package:mobile_app/core/errors/failures.dart';
 import 'package:mobile_app/core/utils/network_resilience.dart';
+import 'package:mobile_app/core/utils/logger.dart';
 
 class DashboardService extends ChangeNotifier with NetworkResilience {
   final AppConfig _config;
@@ -36,16 +35,16 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   String? _selectedMemberId;
   int? _selectedMonth;
   int? _selectedYear;
-  
+
   // Masking
   double _maskingFactor = 1.0;
   double get maskingFactor => _maskingFactor;
-  
+
   List<dynamic> get members => _members;
   String? get selectedMemberId => _selectedMemberId;
   int? get selectedMonth => _selectedMonth;
   int? get selectedYear => _selectedYear;
-  
+
   String get currencySymbol {
     final c = _data?.summary.currency ?? 'INR';
     return c == 'INR' ? '₹' : c;
@@ -55,10 +54,10 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     var now = DateTime.now();
     _selectedMonth = now.month;
     _selectedYear = now.year;
-    refreshMembers(); 
+    refreshMembers();
     loadSettings();
   }
-  
+
   Future<void> loadSettings() async {
     _isLoading = true;
     notifyListeners();
@@ -66,7 +65,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     try {
       final prefs = await SharedPreferences.getInstance();
       _maskingFactor = prefs.getDouble('masking_factor') ?? 1.0;
-      
+
       // Load existing cache using the consistent key
       // This ensures data is present before refresh() or error screen can hide it
       await _loadCache();
@@ -75,15 +74,15 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
       notifyListeners();
     }
   }
-  
+
   Future<void> setMaskingFactor(double value) async {
     _maskingFactor = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('masking_factor', value);
-    
+
     // Sync to foreground task if running
     await _syncMaskingToForeground(value);
-    
+
     notifyListeners();
   }
 
@@ -99,7 +98,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     try {
       await FlutterForegroundTask.saveData(key: 'masking_factor', value: value);
     } catch (e) {
-      debugPrint("DashboardService: Failed to sync masking to FG: $e");
+      AppLogger.warn("DashboardService: Failed to sync masking to FG: $e");
     }
   }
 
@@ -107,8 +106,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     _maskingFactor = value;
     notifyListeners();
   }
-  
-  String get _cacheKey => 'dashboard_cache_${_selectedYear}_${_selectedMonth}_${_selectedMemberId ?? 'all'}';
+
+  String get _cacheKey =>
+      'dashboard_cache_${_selectedYear}_${_selectedMonth}_${_selectedMemberId ?? 'all'}';
 
   Future<void> _loadCache() async {
     try {
@@ -119,7 +119,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('DashboardService: Error loading cache: $e');
+      AppLogger.error('DashboardService: Error loading cache', e);
     }
   }
 
@@ -130,7 +130,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         await prefs.setString(_cacheKey, jsonEncode(_data!.toJson()));
       }
     } catch (e) {
-      debugPrint('DashboardService: Error saving cache: $e');
+      AppLogger.error('DashboardService: Error saving cache', e);
     }
   }
 
@@ -141,7 +141,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     _loadCache(); // Load immediately
     refresh();
   }
-  
+
   void setMember(String? memberId) {
     if (_selectedMemberId == memberId) return;
     _selectedMemberId = memberId;
@@ -151,7 +151,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
 
   Future<void> refreshMembers() async {
     if (_auth.accessToken == null) return;
-    
+
     final result = await callWithResilience<List<dynamic>>(
       call: () => http.get(
         Uri.parse('${_config.backendUrl}/api/v1/mobile/members'),
@@ -161,7 +161,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     );
 
     result.fold(
-      (failure) => debugPrint('Members fetch failure: ${failure.message}'),
+      (failure) => AppLogger.warn('Members fetch failure: ${failure.message}'),
       (members) {
         _members = members;
         notifyListeners();
@@ -171,7 +171,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
 
   Future<void> refresh() async {
     if (_auth.accessToken == null) return;
-    
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -188,11 +188,11 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
       if (_members.isEmpty) {
         futures.add(refreshMembers());
       }
-      
+
       await Future.wait(futures).timeout(const Duration(seconds: 20));
       _error = null;
     } catch (e) {
-      debugPrint('Dashboard Service Multi-Fetch Failure: $e');
+      AppLogger.error('Dashboard Service Multi-Fetch Failure', e);
       if (e is TimeoutException) {
         _error = 'Dashboard update timed out';
       } else {
@@ -208,132 +208,134 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   Future<void> _fetchDashboardSummary() async {
     final result = await callWithResilience<Map<String, dynamic>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/summary')
-            .replace(queryParameters: _getQueryParams()),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/mobile/dashboard/summary',
+        ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
       onSuccess: (body) => jsonDecode(body),
     );
 
-    result.fold(
-      (failure) => _error = failure.message,
-      (data) {
-        final summary = DashboardSummary.fromJson(data['summary']);
-        final budget = BudgetSummary.fromJson(data['budget']);
-        final txns = (data['recent_transactions'] as List)
-            .map((i) => RecentTransaction.fromJson(i))
-            .where((t) => !t.isHidden)
-            .toList();
-        
-        _updateData((d) => d.copyWith(
+    result.fold((failure) => _error = failure.message, (data) {
+      final summary = DashboardSummary.fromJson(data['summary']);
+      final budget = BudgetSummary.fromJson(data['budget']);
+      final txns = (data['recent_transactions'] as List)
+          .map((i) => RecentTransaction.fromJson(i))
+          .where((t) => !t.isHidden)
+          .toList();
+
+      _updateData(
+        (d) => d.copyWith(
           summary: summary,
           budget: budget,
           recentTransactions: txns,
           pendingTriageCount: data['pending_triage_count'],
           pendingTrainingCount: data['pending_training_count'] ?? 0,
           familyMembersCount: data['family_members_count'],
-        ));
-      },
-    );
+        ),
+      );
+    });
   }
 
   Future<void> _fetchDashboardTrends() async {
     final result = await callWithResilience<Map<String, dynamic>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/trends')
-            .replace(queryParameters: _getQueryParams()),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/mobile/dashboard/trends',
+        ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
       onSuccess: (body) => jsonDecode(body),
     );
 
-    result.fold(
-      (failure) => _error = failure.message,
-      (data) {
-        final spendingTrend = (data['spending_trend'] as List)
-            .map((i) => SpendingTrendItem.fromJson(i))
-            .toList();
-        final monthWiseTrend = (data['month_wise_trend'] as List)
-            .map((i) => MonthTrendItem.fromJson(i))
-            .toList();
-        
-        _updateData((d) => d.copyWith(
+    result.fold((failure) => _error = failure.message, (data) {
+      final spendingTrend = (data['spending_trend'] as List)
+          .map((i) => SpendingTrendItem.fromJson(i))
+          .toList();
+      final monthWiseTrend = (data['month_wise_trend'] as List)
+          .map((i) => MonthTrendItem.fromJson(i))
+          .toList();
+
+      _updateData(
+        (d) => d.copyWith(
           spendingTrend: spendingTrend,
           monthWiseTrend: monthWiseTrend,
-        ));
-      },
-    );
+        ),
+      );
+    });
   }
 
   Future<void> _fetchDashboardCategories() async {
     final result = await callWithResilience<Map<String, dynamic>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/categories')
-            .replace(queryParameters: _getQueryParams()),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/mobile/dashboard/categories',
+        ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
       onSuccess: (body) => jsonDecode(body),
     );
 
-    result.fold(
-      (failure) => _error = failure.message,
-      (data) {
-        final categories = (data['category_distribution'] as List)
-            .map((i) => CategoryPieItem.fromJson(i))
-            .toList();
-        
-        _updateData((d) => d.copyWith(categoryDistribution: categories));
-      },
-    );
+    result.fold((failure) => _error = failure.message, (data) {
+      final categories = (data['category_distribution'] as List)
+          .map((i) => CategoryPieItem.fromJson(i))
+          .toList();
+
+      _updateData((d) => d.copyWith(categoryDistribution: categories));
+    });
   }
 
   Future<void> _fetchDashboardInvestments() async {
     final result = await callWithResilience<Map<String, dynamic>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/mobile/dashboard/investments')
-            .replace(queryParameters: _getQueryParams()),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/mobile/dashboard/investments',
+        ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
       onSuccess: (body) => jsonDecode(body),
     );
 
-    result.fold(
-      (failure) => _error = failure.message,
-      (data) {
-        InvestmentSummary? investmentSummary;
-        if (data['investment_summary'] != null) {
-          investmentSummary = InvestmentSummary.fromJson(data['investment_summary']);
-        }
-        _updateData((d) => d.copyWith(investmentSummary: investmentSummary));
-      },
-    );
+    result.fold((failure) => _error = failure.message, (data) {
+      InvestmentSummary? investmentSummary;
+      if (data['investment_summary'] != null) {
+        investmentSummary = InvestmentSummary.fromJson(
+          data['investment_summary'],
+        );
+      }
+      _updateData((d) => d.copyWith(investmentSummary: investmentSummary));
+    });
   }
 
   Future<void> _fetchCalendarHeatmap() async {
     final result = await callWithResilience<Map<String, dynamic>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/mobile/heatmap/calendar')
-            .replace(queryParameters: _getQueryParams()),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/mobile/heatmap/calendar',
+        ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
       onSuccess: (body) => jsonDecode(body),
     );
 
-    result.fold(
-      (failure) => _error = failure.message,
-      (data) {
-        final Map<String, Decimal> heatmap = data.map((k, v) => MapEntry(k, Decimal.parse(v.toString())));
-        _updateData((d) => d.copyWith(calendarHeatmap: heatmap));
-      },
-    );
+    result.fold((failure) => _error = failure.message, (data) {
+      final Map<String, Decimal> heatmap = data.map(
+        (k, v) => MapEntry(k, Decimal.parse(v.toString())),
+      );
+      _updateData((d) => d.copyWith(calendarHeatmap: heatmap));
+    });
   }
 
-  Future<Either<Failure, List<UnparsedMessage>>> fetchTrainingQueue({String? search}) async {
+  Future<Either<Failure, List<UnparsedMessage>>> fetchTrainingQueue({
+    String? search,
+  }) async {
     return callWithResilience<List<UnparsedMessage>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training').replace(queryParameters: {
-          if (search != null && search.isNotEmpty) 'search': search,
-        }),
+        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training').replace(
+          queryParameters: {
+            if (search != null && search.isNotEmpty) 'search': search,
+          },
+        ),
         headers: _getHeaders(),
       ),
       onSuccess: (body) {
@@ -358,7 +360,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   }) async {
     return callWithResilience<Unit>(
       call: () => http.post(
-        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/label'),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/ingestion/training/$messageId/label',
+        ),
         headers: _getHeaders(),
         body: jsonEncode({
           'date': date.toUtc().toIso8601String(),
@@ -389,7 +393,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   Future<Either<Failure, Unit>> dismissTraining(String messageId) async {
     return callWithResilience<Unit>(
       call: () => http.post(
-        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/dismiss'),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/ingestion/training/$messageId/dismiss',
+        ),
         headers: _getHeaders(),
         body: jsonEncode({'create_rule': false}),
       ),
@@ -397,7 +403,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     );
   }
 
-  Future<Either<Failure, Map<String, dynamic>>> aiForensicParse(String content) async {
+  Future<Either<Failure, Map<String, dynamic>>> aiForensicParse(
+    String content,
+  ) async {
     return callWithResilience<Map<String, dynamic>>(
       call: () => http.post(
         Uri.parse('${_config.backendUrl}/api/v1/mobile/ai/forensic-parse'),
@@ -421,7 +429,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   Future<Either<Failure, Unit>> markAsSpam(String messageId) async {
     return callWithResilience<Unit>(
       call: () => http.post(
-        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/$messageId/mark-as-spam'),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/ingestion/training/$messageId/mark-as-spam',
+        ),
         headers: _getHeaders(),
       ),
       onSuccess: (_) => unit,
@@ -431,7 +441,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   Future<Either<Failure, Unit>> bulkIgnore(List<String> ids) async {
     return callWithResilience<Unit>(
       call: () => http.post(
-        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/bulk-dismiss'),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/ingestion/training/bulk-dismiss',
+        ),
         headers: _getHeaders(),
         body: jsonEncode({'ids': ids, 'create_rule': false}),
       ),
@@ -442,7 +454,9 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   Future<Either<Failure, Unit>> deleteSpamFilter(String filterId) async {
     return callWithResilience<Unit>(
       call: () => http.delete(
-        Uri.parse('${_config.backendUrl}/api/v1/ingestion/training/spam/$filterId'),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/ingestion/training/spam/$filterId',
+        ),
         headers: _getHeaders(),
       ),
       onSuccess: (_) => unit,
@@ -470,24 +484,26 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
   }
 
   void _updateData(DashboardData Function(DashboardData) updater) {
-    if (_data == null) {
-      _data = DashboardData(
-         summary: DashboardSummary(
-           todayTotal: Decimal.zero, 
-           yesterdayTotal: Decimal.zero,
-           lastMonthSameDayTotal: Decimal.zero,
-           monthlyTotal: Decimal.zero, 
-           currency: 'INR',
-           dailyBudgetLimit: Decimal.zero,
-           proratedBudget: Decimal.zero
-         ),
-         budget: BudgetSummary(limit: Decimal.zero, spent: Decimal.zero, percentage: Decimal.zero),
-         spendingTrend: [],
-         categoryDistribution: [],
-         monthWiseTrend: [],
-         recentTransactions: [],
-       );
-    }
+    _data ??= DashboardData(
+      summary: DashboardSummary(
+        todayTotal: Decimal.zero,
+        yesterdayTotal: Decimal.zero,
+        lastMonthSameDayTotal: Decimal.zero,
+        monthlyTotal: Decimal.zero,
+        currency: 'INR',
+        dailyBudgetLimit: Decimal.zero,
+        proratedBudget: Decimal.zero,
+      ),
+      budget: BudgetSummary(
+        limit: Decimal.zero,
+        spent: Decimal.zero,
+        percentage: Decimal.zero,
+      ),
+      spendingTrend: [],
+      categoryDistribution: [],
+      monthWiseTrend: [],
+      recentTransactions: [],
+    );
     _data = updater(_data!);
     notifyListeners();
   }
@@ -507,4 +523,3 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     };
   }
 }
-

@@ -35,7 +35,9 @@ class LinkedTransaction {
       id: json['id'],
       description: json['description'] ?? 'No description',
       amount: Decimal.parse((json['amount'] ?? 0).toString()),
-      date: DateTime.parse(json['date'] ?? DateTime.now().toUtc().toIso8601String()).toLocal(),
+      date: DateTime.parse(
+        json['date'] ?? DateTime.now().toUtc().toIso8601String(),
+      ).toLocal(),
       category: json['category'],
       accountName: json['account_name'],
     );
@@ -77,14 +79,16 @@ class VaultDocument {
       filename: json['filename'] ?? json['name'] ?? 'Untitled',
       fileType: json['file_type'] ?? 'OTHER',
       description: json['description'],
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toUtc().toIso8601String()).toLocal(),
+      createdAt: DateTime.parse(
+        json['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
+      ).toLocal(),
       isFolder: json['is_folder'] ?? false,
       thumbnailPath: json['thumbnail_path'],
       mimeType: json['mime_type'],
       fileSize: (json['file_size'] as num?)?.toDouble() ?? 0,
       parentId: json['parent_id'],
       transactionId: json['transaction_id'],
-      linkedTransaction: json['transaction'] != null 
+      linkedTransaction: json['transaction'] != null
           ? LinkedTransaction.fromJson(json['transaction'])
           : null,
     );
@@ -110,12 +114,13 @@ class VaultService extends ChangeNotifier with NetworkResilience {
   List<VaultDocument> _documents = [];
   bool _isLoading = false;
   String? _error;
-  
+
   // Navigation & Breadcrumbs
   final List<Map<String, String>> _navigationStack = [
-    {'id': 'ROOT', 'name': 'Vault'}
+    {'id': 'ROOT', 'name': 'Vault'},
   ];
-  List<Map<String, String>> get breadcrumbs => List.unmodifiable(_navigationStack);
+  List<Map<String, String>> get breadcrumbs =>
+      List.unmodifiable(_navigationStack);
   String get currentParentId => _navigationStack.last['id']!;
   String get currentFolderName => _navigationStack.last['name']!;
   bool get canGoBack => _navigationStack.length > 1;
@@ -170,18 +175,22 @@ class VaultService extends ChangeNotifier with NetworkResilience {
   Future<void> _saveCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final data = _documents.map((e) => {
-        'id': e.id,
-        'filename': e.filename,
-        'file_type': e.fileType,
-        'description': e.description,
-        'created_at': e.createdAt.toUtc().toIso8601String(),
-        'is_folder': e.isFolder,
-        'thumbnail_path': e.thumbnailPath,
-        'mime_type': e.mimeType,
-        'file_size': e.fileSize,
-        'parent_id': e.parentId,
-      }).toList();
+      final data = _documents
+          .map(
+            (e) => {
+              'id': e.id,
+              'filename': e.filename,
+              'file_type': e.fileType,
+              'description': e.description,
+              'created_at': e.createdAt.toUtc().toIso8601String(),
+              'is_folder': e.isFolder,
+              'thumbnail_path': e.thumbnailPath,
+              'mime_type': e.mimeType,
+              'file_size': e.fileSize,
+              'parent_id': e.parentId,
+            },
+          )
+          .toList();
       await prefs.setString(_cacheKey, jsonEncode(data));
     } catch (e) {
       debugPrint('VaultService: Error saving cache: $e');
@@ -191,8 +200,10 @@ class VaultService extends ChangeNotifier with NetworkResilience {
   Future<void> fetchDocuments({String? parentId, String? search}) async {
     if (_auth.accessToken == null) return;
 
-    final targetParentId = search != null ? null : (parentId ?? currentParentId);
-    
+    final targetParentId = search != null
+        ? null
+        : (parentId ?? currentParentId);
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -210,11 +221,10 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
     final result = await callWithResilience<List<VaultDocument>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/finance/vault').replace(queryParameters: queryParams),
-        headers: {
-          ...authHeaders,
-          'Content-Type': 'application/json',
-        },
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/finance/vault',
+        ).replace(queryParameters: queryParams),
+        headers: {...authHeaders, 'Content-Type': 'application/json'},
       ),
       onSuccess: (body) async {
         final Map<String, dynamic> responseData = jsonDecode(body);
@@ -250,9 +260,9 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
     final result = await callWithResilience<List<VaultDocument>>(
       call: () => http.get(
-        Uri.parse('${_config.backendUrl}/api/v1/finance/vault').replace(
-          queryParameters: {'transaction_id': transactionId},
-        ),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/finance/vault',
+        ).replace(queryParameters: {'transaction_id': transactionId}),
         headers: authHeaders,
       ),
       onSuccess: (body) async {
@@ -326,13 +336,13 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
   Future<Either<Failure, Unit>> bulkDelete() async {
     if (_selectedIds.isEmpty) return const Right(unit);
-    
+
     _isLoading = true;
     notifyListeners();
 
     final List<String> idsToDelete = _selectedIds.toList();
     int successCount = 0;
-    
+
     for (final id in idsToDelete) {
       final result = await deleteDocument(id);
       if (result.isRight) successCount++;
@@ -345,10 +355,14 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     if (successCount == idsToDelete.length) {
       return const Right(unit);
     } else {
-      return Left(ServerFailure('Only $successCount of ${idsToDelete.length} items deleted'));
+      return Left(
+        ServerFailure(
+          'Only $successCount of ${idsToDelete.length} items deleted',
+        ),
+      );
     }
   }
-  
+
   Future<Either<Failure, Unit>> deleteDocument(String docId) async {
     final result = await callWithResilience<Unit>(
       call: () => http.delete(
@@ -364,17 +378,17 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     return result;
   }
 
-  Future<Either<Failure, Unit>> moveDocuments(List<String> docIds, String targetParentId) async {
+  Future<Either<Failure, Unit>> moveDocuments(
+    List<String> docIds,
+    String targetParentId,
+  ) async {
     _isLoading = true;
     notifyListeners();
 
     final result = await callWithResilience<Unit>(
       call: () => http.patch(
         Uri.parse('${_config.backendUrl}/api/v1/finance/vault/move'),
-        headers: {
-          ...authHeaders,
-          'Content-Type': 'application/json',
-        },
+        headers: {...authHeaders, 'Content-Type': 'application/json'},
         body: jsonEncode({
           'doc_ids': docIds,
           'target_parent_id': targetParentId == "ROOT" ? null : targetParentId,
@@ -386,26 +400,26 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         return unit;
       },
     );
-    
+
     _isLoading = false;
     notifyListeners();
     return result;
   }
 
-  Future<Either<Failure, Unit>> linkTransaction(String docId, String? transactionId) async {
+  Future<Either<Failure, Unit>> linkTransaction(
+    String docId,
+    String? transactionId,
+  ) async {
     _isLoading = true;
     notifyListeners();
 
     final result = await callWithResilience<Unit>(
       call: () => http.patch(
-        Uri.parse('${_config.backendUrl}/api/v1/finance/vault/$docId/link-transaction'),
-        headers: {
-          ...authHeaders,
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'transaction_id': transactionId,
-        }),
+        Uri.parse(
+          '${_config.backendUrl}/api/v1/finance/vault/$docId/link-transaction',
+        ),
+        headers: {...authHeaders, 'Content-Type': 'application/json'},
+        body: jsonEncode({'transaction_id': transactionId}),
       ),
       onSuccess: (body) async {
         final updatedDoc = VaultDocument.fromJson(jsonDecode(body));
@@ -436,15 +450,16 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     notifyListeners();
 
     final url = Uri.parse('${_config.backendUrl}/api/v1/finance/vault/upload');
-    
+
     final result = await callWithResilience<Unit>(
       call: () async {
         final request = http.MultipartRequest('POST', url)
           ..headers.addAll(authHeaders)
           ..fields['file_type'] = fileType
           ..fields['is_shared'] = isShared.toString();
-        
-        final targetParent = parentId ?? (currentParentId == "ROOT" ? "" : currentParentId);
+
+        final targetParent =
+            parentId ?? (currentParentId == "ROOT" ? "" : currentParentId);
         if (targetParent.isNotEmpty) {
           request.fields['parent_id'] = targetParent;
         }
@@ -452,9 +467,15 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         if (transactionId != null) {
           request.fields['transaction_id'] = transactionId;
         }
-        
+
         if (description != null) request.fields['description'] = description;
-        request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            filePath,
+            filename: fileName,
+          ),
+        );
 
         final streamedResponse = await request.send();
         return await http.Response.fromStream(streamedResponse);
@@ -470,37 +491,44 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     return result;
   }
 
-  Future<String?> getOrCreateFolderByName(String name, {String? parentId}) async {
+  Future<String?> getOrCreateFolderByName(
+    String name, {
+    String? parentId,
+  }) async {
     try {
-      final url = Uri.parse('${_config.backendUrl}/api/v1/finance/vault').replace(
-        queryParameters: {'parent_id': parentId ?? ""}
-      );
-      
+      final url = Uri.parse(
+        '${_config.backendUrl}/api/v1/finance/vault',
+      ).replace(queryParameters: {'parent_id': parentId ?? ""});
+
       final response = await http.get(url, headers: authHeaders);
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final List<dynamic> data = responseData['data'];
         for (var item in data) {
-          if (item['is_folder'] == true && (item['filename'] ?? item['name']) == name) {
+          if (item['is_folder'] == true &&
+              (item['filename'] ?? item['name']) == name) {
             return item['id'];
           }
         }
       }
-      
+
       // Not found, create it
-      final createUrl = Uri.parse('${_config.backendUrl}/api/v1/finance/vault/folders');
+      final createUrl = Uri.parse(
+        '${_config.backendUrl}/api/v1/finance/vault/folders',
+      );
       final request = http.MultipartRequest('POST', createUrl)
         ..headers.addAll(authHeaders)
         ..fields['name'] = name;
-      
+
       if (parentId != null && parentId != "ROOT" && parentId.isNotEmpty) {
         request.fields['parent_id'] = parentId;
       }
-      
+
       final streamedResponse = await request.send();
       final createResponse = await http.Response.fromStream(streamedResponse);
-      
-      if (createResponse.statusCode == 200 || createResponse.statusCode == 201) {
+
+      if (createResponse.statusCode == 200 ||
+          createResponse.statusCode == 201) {
         final data = jsonDecode(createResponse.body);
         return data['id'];
       }
@@ -521,8 +549,10 @@ class VaultService extends ChangeNotifier with NetworkResilience {
         final request = http.MultipartRequest('POST', url)
           ..headers.addAll(authHeaders)
           ..fields['name'] = name
-          ..fields['parent_id'] = currentParentId == "ROOT" ? "" : currentParentId;
-        
+          ..fields['parent_id'] = currentParentId == "ROOT"
+              ? ""
+              : currentParentId;
+
         final streamedResponse = await request.send();
         return await http.Response.fromStream(streamedResponse);
       },
@@ -537,7 +567,11 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     return result;
   }
 
-  Future<Either<Failure, Unit>> updateDocumentMetadata(String docId, {String? newName, String? newType}) async {
+  Future<Either<Failure, Unit>> updateDocumentMetadata(
+    String docId, {
+    String? newName,
+    String? newType,
+  }) async {
     _isLoading = true;
     notifyListeners();
 
@@ -547,10 +581,10 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       call: () async {
         final request = http.MultipartRequest('PUT', url)
           ..headers.addAll(authHeaders);
-          
+
         if (newName != null) request.fields['filename'] = newName;
         if (newType != null) request.fields['file_type'] = newType;
-        
+
         final streamedResponse = await request.send();
         return await http.Response.fromStream(streamedResponse);
       },
@@ -573,10 +607,10 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       );
 
       if (response.statusCode == 200) {
-        final directory = kIsWeb 
-          ? null 
-          : (await getApplicationDocumentsDirectory()).path;
-        
+        final directory = kIsWeb
+            ? null
+            : (await getApplicationDocumentsDirectory()).path;
+
         if (directory != null) {
           final file = File('$directory/${doc.filename}');
           await file.writeAsBytes(response.bodyBytes);
@@ -590,11 +624,17 @@ class VaultService extends ChangeNotifier with NetworkResilience {
     }
   }
 
-  Future<Either<Failure, List<dynamic>>> searchTransactions({String? query, int limit = 20}) async {
-    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/transactions').replace(queryParameters: {
-      'limit': limit.toString(),
-      if (query != null && query.isNotEmpty) 'search': query,
-    });
+  Future<Either<Failure, List<dynamic>>> searchTransactions({
+    String? query,
+    int limit = 20,
+  }) async {
+    final url = Uri.parse('${_config.backendUrl}/api/v1/mobile/transactions')
+        .replace(
+          queryParameters: {
+            'limit': limit.toString(),
+            if (query != null && query.isNotEmpty) 'search': query,
+          },
+        );
 
     return await callWithResilience<List<dynamic>>(
       call: () => http.get(url, headers: authHeaders),

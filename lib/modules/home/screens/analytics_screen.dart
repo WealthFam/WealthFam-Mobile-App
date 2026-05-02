@@ -15,7 +15,6 @@ import 'package:mobile_app/modules/home/services/categories_service.dart';
 import 'package:decimal/decimal.dart';
 import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
-import 'package:mobile_app/modules/ingestion/screens/sms_management_screen.dart';
 import 'package:mobile_app/modules/vault/screens/vault_screen.dart';
 import 'package:mobile_app/modules/home/screens/add_transaction_screen.dart';
 import 'package:mobile_app/modules/home/screens/spending_heatmap_widget.dart';
@@ -43,7 +42,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _dashboard = context.read<DashboardService>();
       _dashboard?.addListener(_onFiltersChanged);
-      
+
       // Load cache and trigger refresh
       _loadTransactionCache();
       _dashboard?.refresh();
@@ -51,7 +50,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     });
 
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
         _fetchTransactions();
       }
     });
@@ -65,8 +65,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   void _onFiltersChanged() {
-    if (!mounted) return;
-    
+    if (!context.mounted) return;
+
     // Always clear the view and start fresh when filters change
     // This prevents "stale month" impression even if a previous load was in-flight
     _loadTransactionCache(); // This will clear the list and load cache for the NEW month
@@ -122,14 +122,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final auth = context.read<AuthService>();
     final dashboard = context.read<DashboardService>();
 
-    final url = Uri.parse('${config.backendUrl}/api/v1/mobile/transactions').replace(queryParameters: {
-      'page': _page.toString(),
-      'page_size': '20',
-      if (dashboard.selectedMonth != null) 'month': (widget.showTodayOnly ? DateTime.now().month : dashboard.selectedMonth).toString(),
-      if (dashboard.selectedYear != null) 'year': (widget.showTodayOnly ? DateTime.now().year : dashboard.selectedYear).toString(),
-      if (widget.showTodayOnly) 'day': DateTime.now().day.toString(),
-      if (dashboard.selectedMemberId != null) 'member_id': dashboard.selectedMemberId,
-    });
+    final url = Uri.parse('${config.backendUrl}/api/v1/mobile/transactions')
+        .replace(
+          queryParameters: {
+            'page': _page.toString(),
+            'page_size': '20',
+            if (dashboard.selectedMonth != null)
+              'month':
+                  (widget.showTodayOnly
+                          ? DateTime.now().month
+                          : dashboard.selectedMonth)
+                      .toString(),
+            if (dashboard.selectedYear != null)
+              'year':
+                  (widget.showTodayOnly
+                          ? DateTime.now().year
+                          : dashboard.selectedYear)
+                      .toString(),
+            if (widget.showTodayOnly) 'day': DateTime.now().day.toString(),
+            if (dashboard.selectedMemberId != null)
+              'member_id': dashboard.selectedMemberId,
+          },
+        );
 
     try {
       final response = await http.get(
@@ -165,7 +179,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     final dashboard = context.watch<DashboardService>();
     final theme = Theme.of(context);
-    final currencyFormat = NumberFormat.currency(symbol: dashboard.currencySymbol, decimalDigits: 0);
+    final currencyFormat = NumberFormat.currency(
+      symbol: dashboard.currencySymbol,
+      decimalDigits: 0,
+    );
 
     String formatAmount(Decimal amount) {
       return currencyFormat.format(amount.toDouble() / dashboard.maskingFactor);
@@ -178,7 +195,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         leading: const DrawerMenuButton(),
         elevation: 0,
         backgroundColor: Colors.transparent,
-        title: const Text('Insights', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Insights',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           if (dashboard.members.isNotEmpty)
             PopupMenuButton<String>(
@@ -189,12 +209,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 dashboard.setMember(val == 'all' ? null : val);
               },
               itemBuilder: (context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem(value: 'all', child: Text('👩‍👩‍👧‍👦 Full Family')),
+                const PopupMenuItem(
+                  value: 'all',
+                  child: Text('👩‍👩‍👧‍👦 Full Family'),
+                ),
                 const PopupMenuDivider(),
-                ...dashboard.members.map((m) => PopupMenuItem(
-                      value: m['id'].toString(),
-                      child: Text('${m['role'] == "CHILD" ? "👶" : "👤"} ${m['name']}'),
-                    ))
+                ...dashboard.members.map(
+                  (m) => PopupMenuItem(
+                    value: m['id'].toString(),
+                    child: Text(
+                      '${m['role'] == "CHILD" ? "👶" : "👤"} ${m['name']}',
+                    ),
+                  ),
+                ),
               ],
             ),
           IconButton(
@@ -208,139 +235,178 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         children: [
           RefreshIndicator(
             onRefresh: () async {
-               await dashboard.refresh();
-               await _fetchTransactions(reset: true);
+              await dashboard.refresh();
+              await _fetchTransactions(reset: true);
             },
             child: CustomScrollView(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _buildFilterSummary(context, dashboard),
-                        ),
-                      ),
-                      if (dashboard.data != null) ...[
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildPremiumHeader(context, dashboard, formatAmount),
-                                const SizedBox(height: 12),
-                                _buildSmartInsight(context, dashboard.data!),
-                                const SizedBox(height: 24),
-                                _buildSectionTitle(context, 'Spending Trend'),
-                                const SizedBox(height: 12),
-                                TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0.0, end: 1.0),
-                                  duration: const Duration(milliseconds: 600),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (context, value, child) {
-                                    return Opacity(
-                                      opacity: value,
-                                      child: Transform.translate(
-                                        offset: Offset(0, 20 * (1 - value)),
-                                        child: child,
-                                      ),
-                                    );
-                                  },
-                                  child: _buildMonthTrendChart(context, dashboard.data!.monthWiseTrend, dashboard.maskingFactor),
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildFilterSummary(context, dashboard),
+                  ),
+                ),
+                if (dashboard.data != null) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPremiumHeader(context, dashboard, formatAmount),
+                          const SizedBox(height: 12),
+                          _buildSmartInsight(context, dashboard.data!),
+                          const SizedBox(height: 24),
+                          _buildSectionTitle(context, 'Spending Trend'),
+                          const SizedBox(height: 12),
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, child) {
+                              return Opacity(
+                                opacity: value,
+                                child: Transform.translate(
+                                  offset: Offset(0, 20 * (1 - value)),
+                                  child: child,
                                 ),
-                                const SizedBox(height: 32),
-                                _buildSectionTitle(context, 'Fiscal Pulse (Annual Heatmap)'),
-                                const SizedBox(height: 12),
-                                () {
-                                  final year = dashboard.selectedYear ?? DateTime.now().year;
-                                  final month = dashboard.selectedMonth ?? DateTime.now().month;
-                                  final lastDay = DateTime(year, month + 1, 0, 23, 59, 59); 
-                                  final firstDay = lastDay.subtract(const Duration(days: 364));
-                                  return CalendarHeatmapWidget(
-                                    data: dashboard.data!.calendarHeatmap,
-                                    maskingFactor: dashboard.maskingFactor,
-                                    startDate: firstDay,
-                                    endDate: lastDay,
-                                  );
-                                }(),
-                                const SizedBox(height: 32),
-                                _buildSectionTitle(context, 'Geographical Spending'),
-                                const SizedBox(height: 12),
-                                const SpendingHeatmapWidget(),
-                                const SizedBox(height: 32),
-                                _buildSectionTitle(context, 'Daily Activity (This Month)'),
-                                const SizedBox(height: 12),
-                                _buildDailyTrendChart(context, dashboard.data!.spendingTrend, dashboard.maskingFactor),
-                                const SizedBox(height: 32),
-                                _buildSectionTitle(context, 'Category Breakdown'),
-                                const SizedBox(height: 12),
-                                _buildCategoryPieChart(context, dashboard.data!.categoryDistribution, formatAmount),
-                                const SizedBox(height: 32),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    _buildSectionTitle(context, 'Detailed Ledger'),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        'Total: ${formatAmount(dashboard.data!.summary.monthlyTotal)}',
-                                        style: TextStyle(
-                                          fontSize: 11, 
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.primary
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                              ],
+                              );
+                            },
+                            child: _buildMonthTrendChart(
+                              context,
+                              dashboard.data!.monthWiseTrend,
+                              dashboard.maskingFactor,
                             ),
                           ),
-                        ),
-                        if (_transactions.isNotEmpty) 
-                          _buildTransactionSliverList(context)
-                        else if (!(_isTxnLoading && _transactions.isEmpty))
-                           const SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 40),
-                              child: Center(
+                          const SizedBox(height: 32),
+                          _buildSectionTitle(
+                            context,
+                            'Fiscal Pulse (Annual Heatmap)',
+                          ),
+                          const SizedBox(height: 12),
+                          () {
+                            final year =
+                                dashboard.selectedYear ?? DateTime.now().year;
+                            final month =
+                                dashboard.selectedMonth ?? DateTime.now().month;
+                            final lastDay = DateTime(
+                              year,
+                              month + 1,
+                              0,
+                              23,
+                              59,
+                              59,
+                            );
+                            final firstDay = lastDay.subtract(
+                              const Duration(days: 364),
+                            );
+                            return CalendarHeatmapWidget(
+                              data: dashboard.data!.calendarHeatmap,
+                              maskingFactor: dashboard.maskingFactor,
+                              startDate: firstDay,
+                              endDate: lastDay,
+                            );
+                          }(),
+                          const SizedBox(height: 32),
+                          _buildSectionTitle(context, 'Geographical Spending'),
+                          const SizedBox(height: 12),
+                          const SpendingHeatmapWidget(),
+                          const SizedBox(height: 32),
+                          _buildSectionTitle(
+                            context,
+                            'Daily Activity (This Month)',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildDailyTrendChart(
+                            context,
+                            dashboard.data!.spendingTrend,
+                            dashboard.maskingFactor,
+                          ),
+                          const SizedBox(height: 32),
+                          _buildSectionTitle(context, 'Category Breakdown'),
+                          const SizedBox(height: 12),
+                          _buildCategoryPieChart(
+                            context,
+                            dashboard.data!.categoryDistribution,
+                            formatAmount,
+                          ),
+                          const SizedBox(height: 32),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildSectionTitle(context, 'Detailed Ledger'),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
                                 child: Text(
-                                  "No transactions found for this period",
-                                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                                  'Total: ${formatAmount(dashboard.data!.summary.monthlyTotal)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                      ] else if (dashboard.isLoading || (_isTxnLoading && _transactions.isEmpty)) ...[
-                        const SliverFillRemaining(
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                      ] else ...[
-                         const SliverFillRemaining(
-                          child: Center(child: Text("No transactions found for this period")),
-                        ),
-                      ],
-                      if (_isTxnLoading && _transactions.isNotEmpty) 
-                        const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 20),
-                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          ),
-                        ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 48)),
-                    ],
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
                   ),
+                  if (_transactions.isNotEmpty)
+                    _buildTransactionSliverList(context)
+                  else if (!(_isTxnLoading && _transactions.isEmpty))
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            "No transactions found for this period",
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ),
+                ] else if (dashboard.isLoading ||
+                    (_isTxnLoading && _transactions.isEmpty)) ...[
+                  const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ] else ...[
+                  const SliverFillRemaining(
+                    child: Center(
+                      child: Text("No transactions found for this period"),
+                    ),
+                  ),
+                ],
+                if (_isTxnLoading && _transactions.isNotEmpty)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 48)),
+              ],
+            ),
           ),
           if ((dashboard.isLoading || _isTxnLoading) && _transactions.isEmpty)
             Positioned.fill(
               child: Container(
-                color: theme.scaffoldBackgroundColor.withOpacity(0.3),
+                color: theme.scaffoldBackgroundColor.withValues(alpha: 0.3),
                 child: const Center(
                   child: Card(
                     elevation: 4,
@@ -351,7 +417,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         children: [
                           CircularProgressIndicator(),
                           SizedBox(height: 12),
-                          Text("Fetching latest data...", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text(
+                            "Fetching latest data...",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -382,18 +454,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         spacing: 8,
         children: [
           Chip(
-            label: Text(DateFormat('MMMM yyyy').format(DateTime(dashboard.selectedYear ?? 2024, dashboard.selectedMonth ?? 1))),
-            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-            backgroundColor: theme.primaryColor.withOpacity(0.1),
+            label: Text(
+              DateFormat('MMMM yyyy').format(
+                DateTime(
+                  dashboard.selectedYear ?? 2024,
+                  dashboard.selectedMonth ?? 1,
+                ),
+              ),
+            ),
+            labelStyle: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+            backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
             side: BorderSide.none,
-            avatar: Icon(Icons.calendar_today, size: 12, color: theme.primaryColor),
+            avatar: Icon(
+              Icons.calendar_today,
+              size: 12,
+              color: theme.primaryColor,
+            ),
           ),
           Chip(
             label: Text(memberName),
-            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-            backgroundColor: theme.primaryColor.withOpacity(0.1),
+            labelStyle: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+            backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
             side: BorderSide.none,
-            avatar: Icon(Icons.person_outline, size: 12, color: theme.primaryColor),
+            avatar: Icon(
+              Icons.person_outline,
+              size: 12,
+              color: theme.primaryColor,
+            ),
           ),
         ],
       ),
@@ -406,17 +499,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
         fontWeight: FontWeight.bold,
         letterSpacing: 0.5,
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
       ),
     );
   }
 
-  Widget _buildPremiumHeader(BuildContext context, DashboardService dashboard, Function(Decimal) format) {
+  Widget _buildPremiumHeader(
+    BuildContext context,
+    DashboardService dashboard,
+    Function(Decimal) format,
+  ) {
     if (dashboard.data == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final data = dashboard.data!;
     final summary = data.summary;
-    
+
     // Status color for today vs daily budget
 
     return Column(
@@ -431,7 +528,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 Icons.account_balance_wallet_rounded,
                 theme.colorScheme.primary,
                 subtitle: 'vs ${format(data.budget.limit)} limit',
-                progress: data.budget.limit > Decimal.zero ? (summary.monthlyTotal.toDouble() / data.budget.limit.toDouble()) : 0.0,
+                progress: data.budget.limit > Decimal.zero
+                    ? (summary.monthlyTotal.toDouble() /
+                          data.budget.limit.toDouble())
+                    : 0.0,
               ),
             ),
             const SizedBox(width: 12),
@@ -441,36 +541,47 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 'Budget Used',
                 '${data.budget.percentage.toDouble().toStringAsFixed(1)}%',
                 Icons.speed_rounded,
-                data.budget.percentage > Decimal.parse('100') ? AppTheme.danger : (data.budget.percentage > Decimal.parse('90') ? AppTheme.warning : AppTheme.success),
-                subtitle: data.budget.percentage > Decimal.parse('100') ? 'Over Limit!' : 'On Track',
+                data.budget.percentage > Decimal.parse('100')
+                    ? AppTheme.danger
+                    : (data.budget.percentage > Decimal.parse('90')
+                          ? AppTheme.warning
+                          : AppTheme.success),
+                subtitle: data.budget.percentage > Decimal.parse('100')
+                    ? 'Over Limit!'
+                    : 'On Track',
                 progress: data.budget.percentage.toDouble() / 100.0,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        if (summary.todayTotal > Decimal.zero || summary.dailyBudgetLimit > Decimal.zero)
+        if (summary.todayTotal > Decimal.zero ||
+            summary.dailyBudgetLimit > Decimal.zero)
           _buildDailyHealthCard(context, summary, dashboard.maskingFactor),
       ],
     );
   }
 
-  Widget _buildDailyHealthCard(BuildContext context, DashboardSummary summary, double maskingFactor) {
+  Widget _buildDailyHealthCard(
+    BuildContext context,
+    DashboardSummary summary,
+    double maskingFactor,
+  ) {
     final theme = Theme.of(context);
     final isOverDaily = summary.todayTotal > summary.dailyBudgetLimit;
-    final currency = context.read<DashboardService>().data?.summary.currency ?? '₹';
+    final currency =
+        context.read<DashboardService>().data?.summary.currency ?? '₹';
     final healthColor = isOverDaily ? AppTheme.danger : AppTheme.success;
-    
-    
+
     final yesterdayDiff = summary.todayTotal - summary.yesterdayTotal;
     final lastMonthDiff = summary.todayTotal - summary.lastMonthSameDayTotal;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: healthColor.withOpacity(0.05),
+        color: healthColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: healthColor.withOpacity(0.2)),
+        border: Border.all(color: healthColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -480,38 +591,62 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   Row(
-                     children: [
-                       Icon(Icons.today, size: 14, color: healthColor),
-                       const SizedBox(width: 6),
-                       const Text('Today\'s Consumption', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                     ],
-                   ),
-                   const SizedBox(height: 4),
-                   Text(
-                     '$currency${NumberFormat.decimalPattern().format(summary.todayTotal.toDouble() / maskingFactor)}',
-                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurface),
-                   ),
+                  Row(
+                    children: [
+                      Icon(Icons.today, size: 14, color: healthColor),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Today\'s Consumption',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$currency${NumberFormat.decimalPattern().format(summary.todayTotal.toDouble() / maskingFactor)}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('Daily Limit', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  const Text(
+                    'Daily Limit',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
                   Text(
                     '$currency${NumberFormat.compact().format(summary.dailyBudgetLimit.toDouble() / maskingFactor)}',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Container(
                     margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: healthColor.withOpacity(0.2),
+                      color: healthColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       isOverDaily ? 'LIMIT EXCEEDED' : 'WITHIN BUDGET',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: healthColor),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: healthColor,
+                      ),
                     ),
                   ),
                 ],
@@ -527,19 +662,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 Expanded(
                   child: _buildTrendItem(
-                    context, 
-                    'vs Yesterday', 
-                    yesterdayDiff, 
+                    context,
+                    'vs Yesterday',
+                    yesterdayDiff,
                     maskingFactor,
                     isPositiveBad: true,
                   ),
                 ),
-                VerticalDivider(width: 32, thickness: 1, color: theme.dividerColor.withOpacity(0.3)),
+                VerticalDivider(
+                  width: 32,
+                  thickness: 1,
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
                 Expanded(
                   child: _buildTrendItem(
-                    context, 
-                    'vs Last Month Same Day', 
-                    lastMonthDiff, 
+                    context,
+                    'vs Last Month Same Day',
+                    lastMonthDiff,
                     maskingFactor,
                     isPositiveBad: true,
                   ),
@@ -552,15 +691,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildTrendItem(BuildContext context, String label, Decimal diff, double maskingFactor, {bool isPositiveBad = true}) {
+  Widget _buildTrendItem(
+    BuildContext context,
+    String label,
+    Decimal diff,
+    double maskingFactor, {
+    bool isPositiveBad = true,
+  }) {
     final isNegative = diff < Decimal.zero;
-    final color = isNegative ? AppTheme.success : (diff == Decimal.zero ? Colors.grey : AppTheme.danger);
-    final icon = isNegative ? Icons.trending_down : (diff == Decimal.zero ? Icons.trending_flat : Icons.trending_up);
-    
+    final color = isNegative
+        ? AppTheme.success
+        : (diff == Decimal.zero ? Colors.grey : AppTheme.danger);
+    final icon = isNegative
+        ? Icons.trending_down
+        : (diff == Decimal.zero ? Icons.trending_flat : Icons.trending_up);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 4),
         Row(
           children: [
@@ -568,7 +724,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             const SizedBox(width: 4),
             Text(
               '${diff > Decimal.zero ? "+" : ""}${NumberFormat.compact().format(diff.toDouble() / maskingFactor)}',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
             ),
           ],
         ),
@@ -576,62 +736,89 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildGlassCard(BuildContext context, String title, String value, IconData icon, Color color, {String? subtitle, double? progress}) {
-     final theme = Theme.of(context);
-     return Container(
-       height: 110,
-       padding: const EdgeInsets.all(14),
-       decoration: BoxDecoration(
-         gradient: LinearGradient(
-           begin: Alignment.topLeft,
-           end: Alignment.bottomRight,
-           colors: [
-             color.withOpacity(0.08),
-             color.withOpacity(0.02),
-           ],
-         ),
-         borderRadius: BorderRadius.circular(24),
-         border: Border.all(color: color.withOpacity(0.15)),
-       ),
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-         children: [
-           Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-               Container(
-                 padding: const EdgeInsets.all(6),
-                 decoration: BoxDecoration(
-                   color: color.withOpacity(0.1),
-                   shape: BoxShape.circle,
-                 ),
-                 child: Icon(icon, size: 16, color: color),
-               ),
-               if (subtitle != null)
-                 Text(subtitle, style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurface.withOpacity(0.5))),
-             ],
-           ),
-           Column(
-             crossAxisAlignment: CrossAxisAlignment.start,
-             children: [
-               Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-               Text(title, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6))),
-             ],
-           ),
-           if (progress != null)
-             ClipRRect(
-               borderRadius: BorderRadius.circular(2),
-               child: LinearProgressIndicator(
-                 value: progress.clamp(0.0, 1.0),
-                 backgroundColor: color.withOpacity(0.1),
-                 color: color,
-                 minHeight: 3,
-               ),
-             ),
-         ],
-       ),
-     );
+  Widget _buildGlassCard(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+    Color color, {
+    String? subtitle,
+    double? progress,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 110,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.08),
+            color.withValues(alpha: 0.02),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+          if (progress != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                backgroundColor: color.withValues(alpha: 0.1),
+                color: color,
+                minHeight: 3,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSmartInsight(BuildContext context, DashboardData data) {
@@ -653,23 +840,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.1)),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 8),
-          Expanded(child: Text(insightText, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color))),
+          Expanded(
+            child: Text(
+              insightText,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMonthTrendChart(BuildContext context, List<MonthTrendItem> trend, double maskingFactor) {
+  Widget _buildMonthTrendChart(
+    BuildContext context,
+    List<MonthTrendItem> trend,
+    double maskingFactor,
+  ) {
     if (trend.isEmpty) {
-      return const SizedBox(height: 150, child: Center(child: Text("No Trend Data")));
+      return const SizedBox(
+        height: 150,
+        child: Center(child: Text("No Trend Data")),
+      );
     }
 
     double maxY = 0;
@@ -685,30 +888,44 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
       ),
       child: BarChart(
         BarChartData(
           maxY: maxY,
           barGroups: trend.asMap().entries.map((e) {
             final isSelected = e.value.isSelected;
-            
+
             return BarChartGroupData(
               x: e.key,
               barRods: [
                 BarChartRodData(
                   toY: e.value.spent.toDouble(),
-                  color: isSelected 
-                    ? (e.value.spent > e.value.budget && e.value.budget > Decimal.zero ? AppTheme.danger : Theme.of(context).colorScheme.secondary)
-                    : (e.value.spent > e.value.budget && e.value.budget > Decimal.zero ? AppTheme.danger.withOpacity(0.4) : AppTheme.primary.withOpacity(0.4)),
+                  color: isSelected
+                      ? (e.value.spent > e.value.budget &&
+                                e.value.budget > Decimal.zero
+                            ? AppTheme.danger
+                            : Theme.of(context).colorScheme.secondary)
+                      : (e.value.spent > e.value.budget &&
+                                e.value.budget > Decimal.zero
+                            ? AppTheme.danger.withValues(alpha: 0.4)
+                            : AppTheme.primary.withValues(alpha: 0.4)),
                   width: isSelected ? 18 : 14,
                   borderRadius: BorderRadius.circular(6),
                   backDrawRodData: BackgroundBarChartRodData(
                     show: true,
-                    toY: e.value.budget > Decimal.zero ? e.value.budget.toDouble() : maxY * 0.8,
-                    color: isSelected 
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                      : Theme.of(context).dividerColor.withOpacity(0.05),
+                    toY: e.value.budget > Decimal.zero
+                        ? e.value.budget.toDouble()
+                        : maxY * 0.8,
+                    color: isSelected
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.1)
+                        : Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.05),
                   ),
                 ),
               ],
@@ -721,7 +938,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 reservedSize: 45,
                 getTitlesWidget: (val, meta) => Text(
                   NumberFormat.compact().format(val / maskingFactor),
-                  style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -734,8 +955,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
-                        trend[idx].month.split(' ')[0], 
-                        style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold)
+                        trend[idx].month.split(' ')[0],
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     );
                   }
@@ -743,8 +968,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 },
               ),
             ),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
@@ -780,9 +1009,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   children: [
                     TextSpan(
-                      text: NumberFormat.compact().format(rod.toY / maskingFactor),
+                      text: NumberFormat.compact().format(
+                        rod.toY / maskingFactor,
+                      ),
                       style: TextStyle(color: rod.color, fontSize: 10),
-                    )
+                    ),
                   ],
                 );
               },
@@ -793,7 +1024,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildDailyTrendChart(BuildContext context, List<SpendingTrendItem> trend, double maskingFactor) {
+  Widget _buildDailyTrendChart(
+    BuildContext context,
+    List<SpendingTrendItem> trend,
+    double maskingFactor,
+  ) {
     if (trend.isEmpty) {
       return const SizedBox(height: 150, child: Center(child: Text("No Data")));
     }
@@ -810,7 +1045,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
       ),
       child: LineChart(
         LineChartData(
@@ -826,11 +1063,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   final date = DateTime.parse(item.date).toLocal();
                   return LineTooltipItem(
                     '${DateFormat('MMM d').format(date)}\n',
-                    TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 10, fontWeight: FontWeight.bold),
+                    TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                     children: [
                       TextSpan(
-                        text: '₹${NumberFormat.compact().format(item.amount.toDouble() / maskingFactor)}',
-                        style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w900),
+                        text:
+                            '₹${NumberFormat.compact().format(item.amount.toDouble() / maskingFactor)}',
+                        style: TextStyle(
+                          color: AppTheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ],
                   );
@@ -846,7 +1092,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 getTitlesWidget: (value, meta) {
                   return Text(
                     NumberFormat.compact().format(value.toDouble()),
-                    style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
                   );
                 },
               ),
@@ -859,12 +1109,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   if (idx >= 0 && idx < trend.length) {
                     // Show labels for 1st, 10th, 20th and last day to avoid crowding
                     DateTime date = DateTime.parse(trend[idx].date).toLocal();
-                    if (date.day == 1 || date.day == 10 || date.day == 20 || idx == trend.length - 1) {
+                    if (date.day == 1 ||
+                        date.day == 10 ||
+                        date.day == 20 ||
+                        idx == trend.length - 1) {
                       return Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
-                          DateFormat('MMM d').format(date), 
-                          style: const TextStyle(fontSize: 8, color: Colors.grey, fontWeight: FontWeight.bold)
+                          DateFormat('MMM d').format(date),
+                          style: const TextStyle(
+                            fontSize: 8,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       );
                     }
@@ -873,21 +1130,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 },
               ),
             ),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           gridData: FlGridData(
-            show: true, 
+            show: true,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Theme.of(context).dividerColor.withOpacity(0.1),
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
               strokeWidth: 1,
             ),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
             LineChartBarData(
-              spots: trend.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.amount.toDouble())).toList(),
+              spots: trend
+                  .asMap()
+                  .entries
+                  .map(
+                    (e) => FlSpot(e.key.toDouble(), e.value.amount.toDouble()),
+                  )
+                  .toList(),
               isCurved: true,
               color: AppTheme.primary,
               barWidth: 4,
@@ -896,7 +1163,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               belowBarData: BarAreaData(
                 show: true,
                 gradient: LinearGradient(
-                  colors: [AppTheme.primary.withOpacity(0.3), AppTheme.primary.withOpacity(0.0)],
+                  colors: [
+                    AppTheme.primary.withValues(alpha: 0.3),
+                    AppTheme.primary.withValues(alpha: 0.0),
+                  ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -908,16 +1178,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildCategoryPieChart(BuildContext context, List<CategoryPieItem> distribution, Function(Decimal) format) {
-    if (distribution.isEmpty) return const SizedBox(height: 150, child: Center(child: Text("No Data")));
+  Widget _buildCategoryPieChart(
+    BuildContext context,
+    List<CategoryPieItem> distribution,
+    Function(Decimal) format,
+  ) {
+    if (distribution.isEmpty) {
+      return const SizedBox(height: 150, child: Center(child: Text("No Data")));
+    }
 
     final List<Color> colors = [
-      const Color(0xFF4F46E5), const Color(0xFF10B981), const Color(0xFFF59E0B),
-      const Color(0xFFEF4444), const Color(0xFF8B5CF6), const Color(0xFFEC4899),
-      const Color(0xFF0EA5E9), const Color(0xFFF43F5E),
+      const Color(0xFF4F46E5),
+      const Color(0xFF10B981),
+      const Color(0xFFF59E0B),
+      const Color(0xFFEF4444),
+      const Color(0xFF8B5CF6),
+      const Color(0xFFEC4899),
+      const Color(0xFF0EA5E9),
+      const Color(0xFFF43F5E),
     ];
 
-    final totalAmount = distribution.fold(Decimal.zero, (sum, i) => sum + i.value);
+    final totalAmount = distribution.fold(
+      Decimal.zero,
+      (sum, i) => sum + i.value,
+    );
     final totalVal = totalAmount.toDouble();
 
     return Container(
@@ -925,7 +1209,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         children: [
@@ -938,12 +1224,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 sections: distribution.asMap().entries.map((entry) {
                   final index = entry.key;
                   final item = entry.value;
-                  final percentage = totalVal > 0 ? (item.value.toDouble() / totalVal * 100) : 0.0;
+                  final percentage = totalVal > 0
+                      ? (item.value.toDouble() / totalVal * 100)
+                      : 0.0;
                   return PieChartSectionData(
                     color: colors[index % colors.length],
                     value: item.value.toDouble(),
                     title: '${percentage.toStringAsFixed(0)}%',
-                    titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                     radius: 50,
                   );
                 }).toList(),
@@ -952,26 +1244,43 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
           const SizedBox(height: 24),
           ...distribution.take(5).toList().asMap().entries.map((e) {
-            final percentage = totalVal > 0 ? (e.value.value.toDouble() / totalVal * 100) : 0.0;
+            final percentage = totalVal > 0
+                ? (e.value.value.toDouble() / totalVal * 100)
+                : 0.0;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
                   Container(
-                    width: 12, 
-                    height: 12, 
-                    decoration: BoxDecoration(color: colors[e.key % colors.length], shape: BoxShape.circle)
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: colors[e.key % colors.length],
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       e.value.name,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  Text(format(e.value.value), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                  Text(
+                    format(e.value.value),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Text('${percentage.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(
+                    '${percentage.toStringAsFixed(1)}%',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
                 ],
               ),
             );
@@ -984,42 +1293,79 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void _showMonthPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           height: 400,
           child: Column(
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const Padding(
                 padding: EdgeInsets.all(24.0),
-                child: Text('Analyse Period', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                child: Text(
+                  'Analyse Period',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                ),
               ),
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: 12,
                   itemBuilder: (context, index) {
-                    final monthDate = DateTime(DateTime.now().year, DateTime.now().month - index, 1);
-                    final isSelected = _dashboard?.selectedMonth == monthDate.month && _dashboard?.selectedYear == monthDate.year;
-                    
+                    final monthDate = DateTime(
+                      DateTime.now().year,
+                      DateTime.now().month - index,
+                      1,
+                    );
+                    final isSelected =
+                        _dashboard?.selectedMonth == monthDate.month &&
+                        _dashboard?.selectedYear == monthDate.year;
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.transparent,
+                        color: isSelected
+                            ? Theme.of(
+                                context,
+                              ).primaryColor.withValues(alpha: 0.1)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: ListTile(
-                        leading: Icon(Icons.circle, size: 12, color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]),
-                        title: Text(
-                          DateFormat('MMMM yyyy').format(monthDate), 
-                          style: TextStyle(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? Theme.of(context).primaryColor : null,
-                          )
+                        leading: Icon(
+                          Icons.circle,
+                          size: 12,
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : Colors.grey[300],
                         ),
-                        trailing: isSelected ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor) : null,
+                        title: Text(
+                          DateFormat('MMMM yyyy').format(monthDate),
+                          style: TextStyle(
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? Theme.of(context).primaryColor
+                                : null,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).primaryColor,
+                              )
+                            : null,
                         onTap: () {
                           _dashboard?.setMonth(monthDate.month, monthDate.year);
                           Navigator.pop(context);
@@ -1046,13 +1392,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+            ),
           ),
           child: const Column(
             children: [
               Icon(Icons.layers_clear_outlined, size: 48, color: Colors.grey),
               SizedBox(height: 16),
-              Text('Clear ledger for this period', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              Text(
+                'Clear ledger for this period',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -1070,28 +1424,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final keys = grouped.keys.toList();
 
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final dateKey = keys[index];
-          final dateTxns = grouped[dateKey]!;
-          final displayDate = DateFormat('EEEE, MMM d').format(DateTime.parse(dateKey));
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final dateKey = keys[index];
+        final dateTxns = grouped[dateKey]!;
+        final displayDate = DateFormat(
+          'EEEE, MMM d',
+        ).format(DateTime.parse(dateKey));
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: Text(
-                  displayDate.toUpperCase(),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Theme.of(context).disabledColor, letterSpacing: 1),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+              child: Text(
+                displayDate.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).disabledColor,
+                  letterSpacing: 1,
                 ),
               ),
-              ...dateTxns.map((txn) => _buildTransactionItem(context, txn)),
-            ],
-          );
-        },
-        childCount: keys.length,
-      ),
+            ),
+            ...dateTxns.map((txn) => _buildTransactionItem(context, txn)),
+          ],
+        );
+      }, childCount: keys.length),
     );
   }
 
@@ -1100,13 +1458,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final dashboard = context.read<DashboardService>();
     final amount = (txn['amount'] as num).toDouble();
     final date = DateTime.parse(txn['date']).toLocal();
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -1114,7 +1472,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         leading: Consumer<CategoriesService>(
           builder: (context, catService, _) {
             final catNameRaw = txn['category'] as String;
-            final catName = catNameRaw.contains(' › ') ? catNameRaw.split(' › ').last : catNameRaw;
+            final catName = catNameRaw.contains(' › ')
+                ? catNameRaw.split(' › ').last
+                : catNameRaw;
             TransactionCategory? matched;
 
             for (var parent in catService.categories) {
@@ -1130,22 +1490,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               }
               if (matched != null) break;
             }
-            
+
             return Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.08),
+                color: theme.primaryColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
               alignment: Alignment.center,
               child: Text(
-                matched?.icon ?? (catName.isNotEmpty ? catName[0].toUpperCase() : '?'),
+                matched?.icon ??
+                    (catName.isNotEmpty ? catName[0].toUpperCase() : '?'),
                 style: TextStyle(
-                  fontSize: 20, 
+                  fontSize: 20,
                   color: theme.primaryColor,
-                  fontWeight: FontWeight.bold
-                )
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             );
           },
@@ -1158,19 +1519,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
         subtitle: Text(
           '${DateFormat('h:mm a').format(date)} • ${txn['account_name'] ?? 'Account'}',
-          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 11,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            fontWeight: FontWeight.w500,
+          ),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              NumberFormat.simpleCurrency(name: 'INR', decimalDigits: 0).format(amount / dashboard.maskingFactor),
+              NumberFormat.simpleCurrency(
+                name: 'INR',
+                decimalDigits: 0,
+              ).format(amount / dashboard.maskingFactor),
               style: TextStyle(
                 color: amount < 0 ? AppTheme.danger : AppTheme.success,
                 fontWeight: FontWeight.w900,
                 fontSize: 14,
-                letterSpacing: -0.5
+                letterSpacing: -0.5,
               ),
             ),
             if (txn['has_documents'] == true)
@@ -1182,11 +1550,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => VaultScreen(initialSearch: txn['description']),
+                        builder: (_) =>
+                            VaultScreen(initialSearch: txn['description']),
                       ),
                     );
                   },
-                  child: Icon(Icons.attach_file, size: 16, color: theme.primaryColor),
+                  child: Icon(
+                    Icons.attach_file,
+                    size: 16,
+                    color: theme.primaryColor,
+                  ),
                 ),
               ),
           ],
@@ -1208,7 +1581,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       accountName: txn['account_name'],
     );
     TransactionSettingsSheet.show(context, model).then((updated) {
-      if (updated == true) {
+      if (updated == true && context.mounted) {
         context.read<DashboardService>().refresh();
         _fetchTransactions(reset: true);
       }
@@ -1222,7 +1595,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           context,
           MaterialPageRoute(builder: (_) => AddTransactionScreen()),
         ).then((val) {
-          if (val == true) {
+          if (val == true && context.mounted) {
             context.read<DashboardService>().refresh();
             _fetchTransactions(reset: true);
           }

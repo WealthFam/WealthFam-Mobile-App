@@ -6,7 +6,7 @@ class AppTheme {
   static const Color primary = Color(0xFF4F46E5);
   static const Color primaryDark = Color(0xFF4338CA);
   static const Color primaryLight = Color(0xFFE0E7FF);
-  
+
   // Semantic Colors
   static const Color success = Color(0xFF10B981);
   static const Color danger = Color(0xFFEF4444);
@@ -45,10 +45,7 @@ class AppTheme {
       ),
       textTheme: GoogleFonts.interTextTheme(
         ThemeData.light().textTheme,
-      ).apply(
-        bodyColor: lightTextMain,
-        displayColor: lightTextMain,
-      ),
+      ).apply(bodyColor: lightTextMain, displayColor: lightTextMain),
       appBarTheme: const AppBarTheme(
         backgroundColor: lightSurface,
         foregroundColor: lightTextMain,
@@ -88,6 +85,26 @@ class AppTheme {
         tileColor: lightSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: lightSurface,
+        indicatorColor: primary.withValues(alpha: 0.1),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: primary,
+            );
+          }
+          return const TextStyle(fontSize: 12, color: lightTextMuted);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: primary, size: 24);
+          }
+          return const IconThemeData(color: lightTextMuted, size: 24);
+        }),
+      ),
     );
   }
 
@@ -110,10 +127,7 @@ class AppTheme {
       ),
       textTheme: GoogleFonts.interTextTheme(
         ThemeData.dark().textTheme,
-      ).apply(
-        bodyColor: darkTextMain,
-        displayColor: darkTextMain,
-      ),
+      ).apply(bodyColor: darkTextMain, displayColor: darkTextMain),
       appBarTheme: const AppBarTheme(
         backgroundColor: darkSurface,
         foregroundColor: darkTextMain,
@@ -152,6 +166,26 @@ class AppTheme {
       listTileTheme: ListTileThemeData(
         tileColor: darkSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: darkSurface,
+        indicatorColor: primary.withValues(alpha: 0.2),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            );
+          }
+          return const TextStyle(fontSize: 12, color: darkTextMuted);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: Colors.white, size: 24);
+          }
+          return const IconThemeData(color: darkTextMuted, size: 24);
+        }),
       ),
     );
   }

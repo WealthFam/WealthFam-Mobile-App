@@ -63,10 +63,10 @@ class AppConfig extends ChangeNotifier {
     if (webUi.endsWith('/')) {
       webUi = webUi.substring(0, webUi.length - 1);
     }
-    
+
     _backendUrl = backend;
     _webUiUrl = webUi;
-    
+
     await _prefs.setString(keyBackendUrl, backend);
     await _prefs.setString(keyWebUiUrl, webUi);
     notifyListeners();

@@ -10,7 +10,7 @@ class SmsDebugLogsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final smsService = context.watch<SmsService>();
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Debug Payloads'),
@@ -19,42 +19,47 @@ class SmsDebugLogsScreen extends StatelessWidget {
             icon: const Icon(Icons.refresh),
             onPressed: () => smsService.refreshDebugLogs(),
           ),
-        ]
+        ],
       ),
-      body: smsService.debugLogs.isEmpty 
-        ? Center(
-            child: Text(
-              "No debug payloads found.\nEnsure 'Show Data In Backend' is enabled.", 
-              textAlign: TextAlign.center,
-              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+      body: smsService.debugLogs.isEmpty
+          ? Center(
+              child: Text(
+                "No debug payloads found.\nEnsure 'Show Data In Backend' is enabled.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
             )
-          )
-        : ListView.builder(
-            itemCount: smsService.debugLogs.length,
-            itemBuilder: (context, index) {
-               final log = smsService.debugLogs[index];
-               final formatted = const JsonEncoder.withIndent('  ').convert(log);
-               return Card(
-                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                 color: theme.colorScheme.surface,
-                 shape: RoundedRectangleBorder(
-                   borderRadius: BorderRadius.circular(12),
-                   side: BorderSide(color: theme.dividerColor),
-                 ),
-                 child: Padding(
-                   padding: const EdgeInsets.all(16),
-                   child: SelectableText(
-                     formatted,
-                     style: TextStyle(
-                       fontFamily: 'monospace', 
-                       fontSize: 12,
-                       color: theme.colorScheme.onSurface
-                     ),
-                   ),
-                 ),
-               );
-            },
-          ),
+          : ListView.builder(
+              itemCount: smsService.debugLogs.length,
+              itemBuilder: (context, index) {
+                final log = smsService.debugLogs[index];
+                final formatted = const JsonEncoder.withIndent(
+                  '  ',
+                ).convert(log);
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.dividerColor),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SelectableText(
+                      formatted,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

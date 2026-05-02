@@ -29,10 +29,13 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     super.initState();
     final config = context.read<AppConfig>();
     final auth = context.read<AuthService>();
+    if (!mounted) return;
     final dashboard = context.read<DashboardService>();
     _backendCtrl = TextEditingController(text: config.backendUrl);
     _deviceIdCtrl = TextEditingController(text: auth.deviceId ?? '');
-    _maskingCtrl = TextEditingController(text: dashboard.maskingFactor.toString());
+    _maskingCtrl = TextEditingController(
+      text: dashboard.maskingFactor.toString(),
+    );
   }
 
   @override
@@ -46,25 +49,32 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   Future<void> _saveConfig() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    
+
     await context.read<AppConfig>().setUrls(
       backend: _backendCtrl.text.trim(),
-      webUi: context.read<AppConfig>().webUiUrl, 
+      webUi: context.read<AppConfig>().webUiUrl,
     );
 
+    if (!mounted) return;
+    final authService = context.read<AuthService>();
     if (_deviceIdCtrl.text.isNotEmpty) {
-      await context.read<AuthService>().setDeviceId(_deviceIdCtrl.text.trim());
+      await authService.setDeviceId(_deviceIdCtrl.text.trim());
     }
 
+    if (!mounted) return;
+    final dashboardService = context.read<DashboardService>();
     final maskingFactor = double.tryParse(_maskingCtrl.text) ?? 1.0;
-    await context.read<DashboardService>().setMaskingFactor(maskingFactor);
-    
+    await dashboardService.setMaskingFactor(maskingFactor);
+
     await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) {
-       setState(() => _isLoading = false);
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('Configuration Saved'), behavior: SnackBarBehavior.floating)
-       );
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Configuration Saved'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -73,15 +83,23 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out? Your session will be cleared.'),
+        content: const Text(
+          'Are you sure you want to sign out? Your session will be cleared.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               context.read<AuthService>().logout();
             },
-            child: const Text('Sign Out', style: TextStyle(color: AppTheme.danger)),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: AppTheme.danger),
+            ),
           ),
         ],
       ),
@@ -103,7 +121,14 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         title: const Text('Settings'),
         actions: [
           if (_isLoading)
-            const Padding(padding: EdgeInsets.all(16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
           else
             IconButton(icon: const Icon(Icons.check), onPressed: _saveConfig),
         ],
@@ -117,19 +142,23 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             children: [
               _buildSectionTitle('ACCOUNT'),
               _buildAccountCard(auth),
-              
+
               const SizedBox(height: 24),
               _buildSectionTitle('SERVER CONFIGURATION'),
               _buildServerCard(theme),
-              
+
               const SizedBox(height: 24),
               _buildSectionTitle('SECURITY & PRIVACY'),
-              _buildSecurityCard(security, config, context.watch<DashboardService>()),
-              
+              _buildSecurityCard(
+                security,
+                config,
+                context.watch<DashboardService>(),
+              ),
+
               const SizedBox(height: 24),
               _buildSectionTitle('SMS & BACKGROUND SYNC'),
               _buildSmsSyncCard(context.watch<SmsService>()),
-              
+
               const SizedBox(height: 24),
               _buildSectionTitle('DEVICE INFO'),
               _buildDeviceCard(theme),
@@ -140,17 +169,28 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                 child: TextButton.icon(
                   onPressed: _confirmLogout,
                   icon: const Icon(Icons.logout, color: AppTheme.danger),
-                  label: const Text('Sign Out from Device', style: TextStyle(color: AppTheme.danger, fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Sign Out from Device',
+                    style: TextStyle(
+                      color: AppTheme.danger,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.all(16),
-                    backgroundColor: AppTheme.danger.withOpacity(0.05),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: AppTheme.danger.withValues(alpha: 0.05),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
               Center(
-                child: Text('Version 1.0.0 (BETA)', style: TextStyle(color: theme.disabledColor, fontSize: 12)),
+                child: Text(
+                  'Version 1.0.0 (BETA)',
+                  style: TextStyle(color: theme.disabledColor, fontSize: 12),
+                ),
               ),
               const SizedBox(height: 48),
             ],
@@ -165,7 +205,12 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.grey),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+          color: Colors.grey,
+        ),
       ),
     );
   }
@@ -177,7 +222,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: AppTheme.primary.withOpacity(0.1),
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
               child: const Icon(Icons.person, color: AppTheme.primary),
             ),
             const SizedBox(width: 16),
@@ -185,8 +230,14 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(auth.isApproved ? 'Approved Member' : 'Pending Approval', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(auth.userRole ?? 'Unknown Role', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    auth.isApproved ? 'Approved Member' : 'Pending Approval',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    auth.userRole ?? 'Unknown Role',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
               ),
             ),
@@ -216,7 +267,11 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     );
   }
 
-  Widget _buildSecurityCard(SecurityService security, AppConfig config, DashboardService dashboard) {
+  Widget _buildSecurityCard(
+    SecurityService security,
+    AppConfig config,
+    DashboardService dashboard,
+  ) {
     return Card(
       child: Column(
         children: [
@@ -248,14 +303,27 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.calculate_outlined, size: 20, color: Colors.grey),
+                const Icon(
+                  Icons.calculate_outlined,
+                  size: 20,
+                  color: Colors.grey,
+                ),
                 const SizedBox(width: 16),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Masking Factor', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      Text('Divide amounts to hide wealth', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        'Masking Factor',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Divide amounts to hide wealth',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -263,9 +331,14 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                   width: 60,
                   child: TextFormField(
                     controller: _maskingCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     textAlign: TextAlign.end,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
@@ -301,15 +374,24 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
               try {
                 await smsService.toggleForegroundService(v);
                 if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     SnackBar(content: Text(v ? 'Background Sync Started' : 'Background Sync Stopped'))
-                   );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        v
+                            ? 'Background Sync Started'
+                            : 'Background Sync Stopped',
+                      ),
+                    ),
+                  );
                 }
               } catch (e) {
                 if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     SnackBar(content: Text('Failed: $e'), backgroundColor: AppTheme.danger)
-                   );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed: $e'),
+                      backgroundColor: AppTheme.danger,
+                    ),
+                  );
                 }
               }
             },
@@ -318,11 +400,20 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.bug_report_outlined, size: 20),
-            title: const Text('View Sync Logs', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Debug incoming SMS payloads', style: TextStyle(fontSize: 12)),
+            title: const Text(
+              'View Sync Logs',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text(
+              'Debug incoming SMS payloads',
+              style: TextStyle(fontSize: 12),
+            ),
             trailing: const Icon(Icons.arrow_forward_ios, size: 14),
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SmsDebugLogsScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SmsDebugLogsScreen()),
+              );
             },
           ),
         ],
@@ -335,13 +426,21 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: ListTile(
-          title: const Text('Device Identifier', style: TextStyle(fontSize: 14)),
-          subtitle: Text(_deviceIdCtrl.text, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+          title: const Text(
+            'Device Identifier',
+            style: TextStyle(fontSize: 14),
+          ),
+          subtitle: Text(
+            _deviceIdCtrl.text,
+            style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+          ),
           trailing: IconButton(
             icon: const Icon(Icons.copy, size: 18),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: _deviceIdCtrl.text));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied ID')));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Copied ID')));
             },
           ),
         ),
@@ -357,12 +456,15 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     required IconData icon,
   }) {
     return SwitchListTile(
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+      ),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       secondary: Icon(icon, size: 20),
       value: value,
       onChanged: onChanged,
-      activeColor: AppTheme.primary,
+      activeThumbColor: AppTheme.primary,
     );
   }
 }

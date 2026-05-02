@@ -34,8 +34,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString().contains('Exception:') 
-              ? e.toString().split('Exception: ')[1] 
+          _error = e.toString().contains('Exception:')
+              ? e.toString().split('Exception: ')[1]
               : e.toString();
           _isLoading = false;
         });
@@ -67,10 +67,10 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: theme.primaryColor.withOpacity(0.1),
+                color: theme.primaryColor.withValues(alpha: 0.1),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.primaryColor.withOpacity(0.1),
+                    color: theme.primaryColor.withValues(alpha: 0.1),
                     blurRadius: 100,
                     spreadRadius: 20,
                   ),
@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          
+
           // Content
           Center(
             child: SingleChildScrollView(
@@ -87,16 +87,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo / Icon
-                  Image.asset(
-                    'assets/branding/logo.png',
-                    height: 80,
-                  ),
+                  Image.asset('assets/branding/logo.png', height: 80),
                   const SizedBox(height: 24),
-                  
+
                   Image.asset(
                     'assets/branding/wordmark.png',
                     height: 40,
-                    // Use color filters if you want it to adapt to theme, 
+                    // Use color filters if you want it to adapt to theme,
                     // but for branding it's usually fixed or has light/dark versions.
                     // For now, let it be.
                   ),
@@ -117,10 +114,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(theme.brightness == Brightness.dark ? 0.6 : 0.8),
+                          color: theme.colorScheme.surface.withValues(
+                            alpha: theme.brightness == Brightness.dark
+                                ? 0.6
+                                : 0.8,
+                          ),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: theme.colorScheme.onSurface.withOpacity(0.1),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.1,
+                            ),
                           ),
                         ),
                         child: Form(
@@ -133,47 +136,71 @@ class _LoginScreenState extends State<LoginScreen> {
                                   padding: const EdgeInsets.all(12),
                                   margin: const EdgeInsets.only(bottom: 16),
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.error.withOpacity(0.1),
+                                    color: theme.colorScheme.error.withValues(
+                                      alpha: 0.1,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: theme.colorScheme.error.withOpacity(0.3)),
+                                    border: Border.all(
+                                      color: theme.colorScheme.error.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                    ),
                                   ),
                                   child: Text(
                                     _error!,
-                                    style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+                                    style: TextStyle(
+                                      color: theme.colorScheme.error,
+                                      fontSize: 12,
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
 
                               TextFormField(
                                 controller: _userCtrl,
-                                style: TextStyle(color: theme.colorScheme.onSurface),
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                ),
                                 decoration: const InputDecoration(
                                   labelText: 'Username',
                                   prefixIcon: Icon(Icons.person_outline),
                                 ),
-                                validator: (v) => v!.isEmpty ? 'Required' : null,
+                                validator: (v) =>
+                                    v!.isEmpty ? 'Required' : null,
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _passCtrl,
                                 obscureText: true,
-                                style: TextStyle(color: theme.colorScheme.onSurface),
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                ),
                                 decoration: const InputDecoration(
                                   labelText: 'Password',
                                   prefixIcon: Icon(Icons.lock_outline),
                                 ),
-                                validator: (v) => v!.isEmpty ? 'Required' : null,
+                                validator: (v) =>
+                                    v!.isEmpty ? 'Required' : null,
                               ),
                               const SizedBox(height: 24),
-                              
+
                               ElevatedButton(
                                 onPressed: _isLoading ? null : _login,
                                 style: ElevatedButton.styleFrom(
-                                  shadowColor: theme.primaryColor.withOpacity(0.5),
+                                  shadowColor: theme.primaryColor.withValues(
+                                    alpha: 0.5,
+                                  ),
                                   elevation: 8,
                                 ),
                                 child: _isLoading
-                                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
                                     : const Text('Sign In'),
                               ),
                             ],
@@ -182,17 +209,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   TextButton.icon(
                     onPressed: _openConfig,
-                    icon: Icon(Icons.settings, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    icon: Icon(
+                      Icons.settings,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                     label: Text(
                       'Configure Server',
-                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),

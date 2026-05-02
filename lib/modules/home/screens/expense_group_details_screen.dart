@@ -17,7 +17,8 @@ class ExpenseGroupDetailsScreen extends StatefulWidget {
   const ExpenseGroupDetailsScreen({super.key, required this.group});
 
   @override
-  State<ExpenseGroupDetailsScreen> createState() => _ExpenseGroupDetailsScreenState();
+  State<ExpenseGroupDetailsScreen> createState() =>
+      _ExpenseGroupDetailsScreenState();
 }
 
 class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
@@ -37,10 +38,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
   }
 
   Future<void> refreshData() async {
-    await Future.wait([
-      _fetchGroupDetails(),
-      fetchExpenseGroupTransactions(),
-    ]);
+    await Future.wait([_fetchGroupDetails(), fetchExpenseGroupTransactions()]);
   }
 
   Future<void> _fetchGroupDetails() async {
@@ -49,7 +47,9 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('${config.backendUrl}/api/v1/mobile/expense-groups/${_group['id']}'),
+        Uri.parse(
+          '${config.backendUrl}/api/v1/mobile/expense-groups/${_group['id']}',
+        ),
         headers: {'Authorization': 'Bearer ${auth.accessToken}'},
       );
 
@@ -75,10 +75,13 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
     final auth = context.read<AuthService>();
 
     try {
-      final url = Uri.parse('${config.backendUrl}/api/v1/mobile/transactions').replace(queryParameters: {
-        'expense_group_id': widget.group['id'].toString(),
-        'page_size': '100',
-      });
+      final url = Uri.parse('${config.backendUrl}/api/v1/mobile/transactions')
+          .replace(
+            queryParameters: {
+              'expense_group_id': widget.group['id'].toString(),
+              'page_size': '100',
+            },
+          );
 
       final response = await http.get(
         url,
@@ -88,7 +91,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> items = data['data'] ?? [];
-        
+
         final filtered = items.where((t) {
           final gid = t['expense_group_id']?.toString();
           return gid == _group['id'].toString();
@@ -119,7 +122,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
     final theme = Theme.of(context);
     final group = _group;
     final budget = (group['budget'] ?? 0.0).toDouble();
-    
+
     // Net spend: backend stores debits as negative, so negate to get positive spend
     double spent = 0;
     for (var txn in _transactions) {
@@ -127,10 +130,9 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
       spent -= amt;
     }
     if (spent < 0) spent = 0;
-    
+
     final progress = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
     final isOverBudget = spent > budget && budget > 0;
-    final isActive = group['is_active'] ?? true;
     final currency = context.read<DashboardService>().currencySymbol;
     final maskingFactor = context.read<DashboardService>().maskingFactor;
 
@@ -179,10 +181,13 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
+                            color: AppTheme.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(group['icon'] ?? '📁', style: const TextStyle(fontSize: 40)),
+                          child: Text(
+                            group['icon'] ?? '📁',
+                            style: const TextStyle(fontSize: 40),
+                          ),
                         ),
                         const SizedBox(width: 20),
                         Expanded(
@@ -191,12 +196,18 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             children: [
                               Text(
                                 group['name'] ?? 'Unnamed Group',
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              if (group['description'] != null && group['description'].isNotEmpty)
+                              if (group['description'] != null &&
+                                  group['description'].isNotEmpty)
                                 Text(
                                   group['description'],
-                                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                             ],
                           ),
@@ -204,27 +215,49 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    if (group['start_date'] != null || group['end_date'] != null)
+                    if (group['start_date'] != null ||
+                        group['end_date'] != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                          border: Border.all(
+                            color: theme.dividerColor.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today, size: 16, color: AppTheme.primary),
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: AppTheme.primary,
+                            ),
                             const SizedBox(width: 12),
                             Text(
                               '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'])) : "Start"} — ${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'])) : "End"}',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     const SizedBox(height: 24),
-                    _buildSummaryCard(theme, spent, budget, progress, isOverBudget, currency, maskingFactor),
+                    _buildSummaryCard(
+                      theme,
+                      spent,
+                      budget,
+                      progress,
+                      isOverBudget,
+                      currency,
+                      maskingFactor,
+                    ),
                     const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -234,11 +267,17 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                           children: [
                             const Text(
                               'Linked Transactions',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               '${_transactions.length} items',
-                              style: TextStyle(color: theme.disabledColor, fontSize: 12),
+                              style: TextStyle(
+                                color: theme.disabledColor,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -247,9 +286,12 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ManageGroupTransactionsScreen(group: _group),
+                                builder: (_) => ManageGroupTransactionsScreen(
+                                  group: _group,
+                                ),
                               ),
                             );
+                            if (!context.mounted) return;
                             if (result == true) {
                               refreshData();
                             }
@@ -258,9 +300,16 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                           label: const Text('Manage'),
                           style: TextButton.styleFrom(
                             foregroundColor: AppTheme.primary,
-                            backgroundColor: AppTheme.primary.withOpacity(0.1),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            backgroundColor: AppTheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ],
@@ -271,31 +320,51 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
               ),
             ),
             if (_isLoading)
-              const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
             else if (_error != null)
-              SliverFillRemaining(child: Center(child: Text(_error!, style: const TextStyle(color: AppTheme.danger))))
+              SliverFillRemaining(
+                child: Center(
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: AppTheme.danger),
+                  ),
+                ),
+              )
             else if (_transactions.isEmpty)
               SliverFillRemaining(
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.receipt_long_outlined, size: 64, color: theme.dividerColor),
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 64,
+                        color: theme.dividerColor,
+                      ),
                       const SizedBox(height: 16),
-                      Text('No transactions linked to this group', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+                      Text(
+                        'No transactions linked to this group',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               )
             else
               SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final txn = _transactions[index];
-                    return _buildTransactionTile(context, txn, currency, maskingFactor);
-                  },
-                  childCount: _transactions.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final txn = _transactions[index];
+                  return _buildTransactionTile(
+                    context,
+                    txn,
+                    currency,
+                    maskingFactor,
+                  );
+                }, childCount: _transactions.length),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
@@ -306,12 +375,20 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
 
   void _showEditGroupDialog(BuildContext context) {
     final nameController = TextEditingController(text: _group['name']);
-    final descriptionController = TextEditingController(text: _group['description']);
-    final budgetController = TextEditingController(text: _group['budget']?.toString() ?? '');
+    final descriptionController = TextEditingController(
+      text: _group['description'],
+    );
+    final budgetController = TextEditingController(
+      text: _group['budget']?.toString() ?? '',
+    );
     final iconController = TextEditingController(text: _group['icon'] ?? '📁');
-    
-    DateTime startDate = _group['start_date'] != null ? DateTime.parse(_group['start_date']) : DateTime.now();
-    DateTime endDate = _group['end_date'] != null ? DateTime.parse(_group['end_date']) : DateTime.now().add(const Duration(days: 30));
+
+    DateTime startDate = _group['start_date'] != null
+        ? DateTime.parse(_group['start_date'])
+        : DateTime.now();
+    DateTime endDate = _group['end_date'] != null
+        ? DateTime.parse(_group['end_date'])
+        : DateTime.now().add(const Duration(days: 30));
 
     showDialog(
       context: context,
@@ -323,15 +400,21 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: iconController, 
+                  controller: iconController,
                   decoration: const InputDecoration(labelText: 'Icon (Emoji)'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 24),
                 ),
                 const SizedBox(height: 16),
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Group Name')),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Group Name'),
+                ),
                 const SizedBox(height: 8),
-                TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description')),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -344,12 +427,20 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2101),
                           );
-                          if (picked != null) setDialogState(() => startDate = picked);
+                          if (picked != null) {
+                            setDialogState(() => startDate = picked);
+                          }
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Start Date', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const Text(
+                              'Start Date',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(DateFormat('MMM d, yyyy').format(startDate)),
                           ],
@@ -365,12 +456,20 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2101),
                           );
-                          if (picked != null) setDialogState(() => endDate = picked);
+                          if (picked != null) {
+                            setDialogState(() => endDate = picked);
+                          }
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('End Date', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const Text(
+                              'End Date',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(DateFormat('MMM d, yyyy').format(endDate)),
                           ],
@@ -381,27 +480,34 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: budgetController, 
-                  decoration: const InputDecoration(labelText: 'Budget', prefixText: '₹ '),
+                  controller: budgetController,
+                  decoration: const InputDecoration(
+                    labelText: 'Budget',
+                    prefixText: '₹ ',
+                  ),
                   keyboardType: TextInputType.number,
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final service = context.read<GoalsService>();
-                final success = await service.updateExpenseGroup(_group['id'].toString(), {
-                  'name': nameController.text,
-                  'description': descriptionController.text,
-                  'icon': iconController.text,
-                  'budget': double.tryParse(budgetController.text) ?? 0.0,
-                  'start_date': startDate.toIso8601String(),
-                  'end_date': endDate.toIso8601String(),
-                });
-                if (success && mounted) {
+                final success = await service
+                    .updateExpenseGroup(_group['id'].toString(), {
+                      'name': nameController.text,
+                      'description': descriptionController.text,
+                      'icon': iconController.text,
+                      'budget': double.tryParse(budgetController.text) ?? 0.0,
+                      'start_date': startDate.toIso8601String(),
+                      'end_date': endDate.toIso8601String(),
+                    });
+                if (success && context.mounted) {
                   Navigator.pop(context);
                   refreshData();
                 }
@@ -419,14 +525,22 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Group?'),
-        content: const Text('All links will be removed. Transactions themselves won\'t be deleted.'),
+        content: const Text(
+          'All links will be removed. Transactions themselves won\'t be deleted.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
-              final success = await context.read<GoalsService>().deleteExpenseGroup(_group['id'].toString());
-              if (success && mounted) {
+              final success = await context
+                  .read<GoalsService>()
+                  .deleteExpenseGroup(_group['id'].toString());
+              if (success && context.mounted) {
                 Navigator.pop(context); // Close dialog
+                if (!context.mounted) return;
                 Navigator.pop(context, true); // Go back to list
               }
             },
@@ -438,26 +552,33 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
   }
 
   Widget _buildSummaryCard(
-    ThemeData theme, 
-    double spent, 
-    double budget, 
-    double progress, 
-    bool isOverBudget, 
+    ThemeData theme,
+    double spent,
+    double budget,
+    double progress,
+    bool isOverBudget,
     String currency,
-    double maskingFactor
+    double maskingFactor,
   ) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.colorScheme.surface, theme.colorScheme.surface.withOpacity(0.9)],
+          colors: [
+            theme.colorScheme.surface,
+            theme.colorScheme.surface.withValues(alpha: 0.9),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 8))
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Column(
@@ -468,14 +589,23 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Actual Spending', style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(
+                      'Actual Spending',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       '$currency${(spent / maskingFactor).toStringAsFixed(0)}',
                       style: TextStyle(
-                        fontSize: 28, 
+                        fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        color: isOverBudget ? AppTheme.danger : AppTheme.primary,
+                        color: isOverBudget
+                            ? AppTheme.danger
+                            : AppTheme.primary,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -484,7 +614,10 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
               ),
               if (budget > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
@@ -492,10 +625,17 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('Target Budget', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                      Text(
+                        'Target Budget',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      ),
                       Text(
                         '$currency${(budget / maskingFactor).toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
                     ],
                   ),
@@ -512,18 +652,24 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                     value: progress,
                     minHeight: 16,
                     backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(isOverBudget ? AppTheme.danger : AppTheme.primary),
-                  ),
-                ),
-                if (progress > 0.05)
-                Positioned.fill(
-                  child: Center(
-                    child: Text(
-                      '${(progress * 100).toStringAsFixed(0)}%',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isOverBudget ? AppTheme.danger : AppTheme.primary,
                     ),
                   ),
                 ),
+                if (progress > 0.05)
+                  Positioned.fill(
+                    child: Center(
+                      child: Text(
+                        '${(progress * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -533,18 +679,30 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                 if (isOverBudget)
                   Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, size: 14, color: AppTheme.danger),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 14,
+                        color: AppTheme.danger,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Exceeded by $currency${((spent - budget) / maskingFactor).toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.danger),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.danger,
+                        ),
                       ),
                     ],
                   )
                 else
                   Text(
                     'Remaining: $currency${((budget - spent) / maskingFactor).toStringAsFixed(0)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 Text(
                   'Goal Balance',
@@ -560,7 +718,10 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
               children: [
                 const Icon(Icons.info_outline, size: 14, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text('Set a budget to track progress', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Text(
+                  'Set a budget to track progress',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
               ],
             ),
           ],
@@ -569,7 +730,12 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
     );
   }
 
-  Widget _buildTransactionTile(BuildContext context, dynamic txn, String currency, double maskingFactor) {
+  Widget _buildTransactionTile(
+    BuildContext context,
+    dynamic txn,
+    String currency,
+    double maskingFactor,
+  ) {
     final theme = Theme.of(context);
     final amount = (txn['amount'] as num).toDouble();
     final date = DateTime.parse(txn['date']).toLocal();
@@ -579,7 +745,7 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -592,16 +758,19 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                   (c) => c?.name.toLowerCase() == catName.toLowerCase(),
                   orElse: () => null,
                 );
-            
+
             if (matched?.icon != null) {
               return CircleAvatar(
-                backgroundColor: theme.primaryColor.withOpacity(0.1),
-                child: Text(matched!.icon!, style: const TextStyle(fontSize: 20)),
+                backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
+                child: Text(
+                  matched!.icon!,
+                  style: const TextStyle(fontSize: 20),
+                ),
               );
             }
-            
+
             return CircleAvatar(
-              backgroundColor: theme.primaryColor.withOpacity(0.1),
+              backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
               child: const Icon(Icons.receipt_long, color: AppTheme.primary),
             );
           },
@@ -614,7 +783,10 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
         ),
         subtitle: Text(
           DateFormat('dd MMM yyyy, HH:mm').format(date),
-          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 12,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         trailing: Text(
           '$currency${(amount.abs() / maskingFactor).toStringAsFixed(1)}',

@@ -7,15 +7,17 @@ import 'package:mobile_app/core/widgets/category_picker.dart';
 import 'package:mobile_app/modules/home/models/unparsed_message.dart';
 import 'package:mobile_app/modules/home/services/dashboard_service.dart';
 import 'package:mobile_app/modules/home/services/categories_service.dart';
-import 'package:mobile_app/modules/home/models/transaction_category.dart';
 import 'package:decimal/decimal.dart';
-import 'package:mobile_app/core/errors/either.dart';
 
 class ForensicAnnotationForm extends StatefulWidget {
   final UnparsedMessage message;
   final VoidCallback onComplete;
 
-  const ForensicAnnotationForm({super.key, required this.message, required this.onComplete});
+  const ForensicAnnotationForm({
+    super.key,
+    required this.message,
+    required this.onComplete,
+  });
 
   @override
   State<ForensicAnnotationForm> createState() => _ForensicAnnotationFormState();
@@ -47,7 +49,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
 
     // Pre-fetch categories
     context.read<CategoriesService>().fetchCategories();
-    
+
     // Check if message content implies credit
     final contentLC = widget.message.content.toLowerCase();
     if (contentLC.contains('credited') || contentLC.contains('received')) {
@@ -59,7 +61,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
     setState(() => _isAIParsing = true);
     final dashboard = context.read<DashboardService>();
     final result = await dashboard.aiForensicParse(widget.message.content);
-    
+
     result.fold(
       (failure) {
         if (mounted) {
@@ -79,7 +81,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
             _descController.text = data['description'] ?? '';
             _category = data['category'] ?? 'Uncategorized';
             _type = data['type'] ?? _type;
-            
+
             _isAmountAI = true;
             _isDescAI = true;
             _isCategoryAI = true;
@@ -99,7 +101,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
               }
             }
           });
-          
+
           Future.delayed(const Duration(seconds: 3), () {
             if (mounted) {
               setState(() {
@@ -120,7 +122,7 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
   void _loadAccounts() async {
     final dashboard = context.read<DashboardService>();
     final result = await dashboard.fetchAccounts();
-    
+
     result.fold(
       (failure) => debugPrint('Error loading accounts: ${failure.message}'),
       (accs) {
@@ -150,7 +152,9 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
 
   void _submit() async {
     if (_selectedAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select an Account')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select an Account')));
       return;
     }
 
@@ -167,7 +171,9 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
     );
 
     result.fold(
-      (failure) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message))),
+      (failure) => ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message))),
       (_) {
         widget.onComplete();
         dashboard.refresh(); // Refresh dashboard to update counts
@@ -179,18 +185,16 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final categoryService = context.watch<CategoriesService>();
-    final categories = categoryService.categories;
-    
+
     if (_isLoadingAccounts) {
-       _loadAccounts();
+      _loadAccounts();
     }
 
     return SafeArea(
       bottom: true,
       child: Container(
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor, 
+          color: theme.scaffoldBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: EdgeInsets.only(
@@ -208,40 +212,71 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                   child: Container(
                     width: 40,
                     height: 4,
-                    decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 Row(
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Neural Forensic', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                        Text('AI-Assisted Transaction Labeling', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6))),
+                        const Text(
+                          'Neural Forensic',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          'AI-Assisted Transaction Labeling',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
                       ],
                     ),
                     const Spacer(),
-                    if (!_isAIParsing) 
+                    if (!_isAIParsing)
                       ElevatedButton.icon(
                         onPressed: _runAIForensic,
                         icon: const Icon(Icons.auto_awesome, size: 14),
-                        label: const Text('AI Analysis', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'AI Analysis',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary.withOpacity(0.1),
+                          backgroundColor: AppTheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           foregroundColor: AppTheme.primary,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100),
+                          ),
                         ),
-                      ) 
-                    else 
-                      const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    else
+                      const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Raw Message Container
                 Container(
                   width: double.infinity,
@@ -249,51 +284,89 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+                    border: Border.all(
+                      color: theme.dividerColor.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.terminal, size: 14, color: AppTheme.primary.withOpacity(0.8)),
+                          Icon(
+                            Icons.terminal,
+                            size: 14,
+                            color: AppTheme.primary.withValues(alpha: 0.8),
+                          ),
                           const SizedBox(width: 8),
-                          Text('RAW EVIDENCE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppTheme.primary.withOpacity(0.8), letterSpacing: 1.5)),
+                          Text(
+                            'RAW EVIDENCE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.primary.withValues(alpha: 0.8),
+                              letterSpacing: 1.5,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        widget.message.content, 
-                        style: TextStyle(fontFamily: 'Courier', fontSize: 13, height: 1.5, color: theme.colorScheme.onSurface.withOpacity(0.8)),
+                        widget.message.content,
+                        style: TextStyle(
+                          fontFamily: 'Courier',
+                          fontSize: 13,
+                          height: 1.5,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.8,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 28),
-                
+
                 // Amount and Type
                 if (_errorMessage != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      border: Border.all(
+                        color: Colors.red.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red, size: 16),
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.red,
+                            size: 16,
+                          ),
                           onPressed: () => setState(() => _errorMessage = null),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -309,22 +382,62 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('AMOUNT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), letterSpacing: 1)),
+                          Text(
+                            'AMOUNT',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                              letterSpacing: 1,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _amountController,
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _isAmountAI ? AppTheme.primary : theme.colorScheme.onSurface),
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: _isAmountAI
+                                  ? AppTheme.primary
+                                  : theme.colorScheme.onSurface,
+                            ),
                             decoration: InputDecoration(
                               hintText: '0.00',
-                              prefixIcon: const Padding(padding: EdgeInsets.only(right: 8, left: 12), child: Icon(Icons.currency_rupee, size: 18)),
-                              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              prefixIcon: const Padding(
+                                padding: EdgeInsets.only(right: 8, left: 12),
+                                child: Icon(Icons.currency_rupee, size: 18),
+                              ),
+                              prefixIconConstraints: const BoxConstraints(
+                                minWidth: 0,
+                                minHeight: 0,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                               filled: true,
-                              fillColor: _isAmountAI ? AppTheme.primary.withOpacity(0.05) : theme.colorScheme.surface,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: theme.dividerColor)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.5))),
+                              fillColor: _isAmountAI
+                                  ? AppTheme.primary.withValues(alpha: 0.05)
+                                  : theme.colorScheme.surface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
                             ),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                           ),
                         ],
                       ),
@@ -335,16 +448,41 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('TYPE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), letterSpacing: 1)),
+                          Text(
+                            'TYPE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                              letterSpacing: 1,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Container(
                             height: 48, // Compact
                             padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor.withOpacity(0.5))),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.dividerColor.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                            ),
                             child: Row(
                               children: [
-                                _buildTypeOption('DEBIT', AppTheme.danger, theme),
-                                _buildTypeOption('CREDIT', AppTheme.success, theme),
+                                _buildTypeOption(
+                                  'DEBIT',
+                                  AppTheme.danger,
+                                  theme,
+                                ),
+                                _buildTypeOption(
+                                  'CREDIT',
+                                  AppTheme.success,
+                                  theme,
+                                ),
                               ],
                             ),
                           ),
@@ -353,27 +491,55 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Description
-                Text('MERCHANT / RECIPIENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), letterSpacing: 1)),
+                Text(
+                  'MERCHANT / RECIPIENT',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.6,
+                    ),
+                    letterSpacing: 1,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _descController,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: _isDescAI ? AppTheme.primary : theme.colorScheme.onSurface),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _isDescAI
+                        ? AppTheme.primary
+                        : theme.colorScheme.onSurface,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Enter name...',
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     filled: true,
-                    fillColor: _isDescAI ? AppTheme.primary.withOpacity(0.05) : theme.colorScheme.surface,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.5))),
+                    fillColor: _isDescAI
+                        ? AppTheme.primary.withValues(alpha: 0.05)
+                        : theme.colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: theme.dividerColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.5),
+                      ),
+                    ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Account and Date
                 Row(
                   children: [
@@ -381,13 +547,27 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('ACCOUNT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), letterSpacing: 1)),
+                          Text(
+                            'ACCOUNT',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                              letterSpacing: 1,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           SearchablePicker(
                             title: 'Select Account',
                             items: _accounts,
                             placeholder: 'Select Account',
-                            selectedValue: _selectedAccountId != null ? {'id': _selectedAccountId, 'name': _selectedAccountName} : null,
+                            selectedValue: _selectedAccountId != null
+                                ? {
+                                    'id': _selectedAccountId,
+                                    'name': _selectedAccountName,
+                                  }
+                                : null,
                             labelMapper: (a) => a['name'] as String,
                             onSelected: (a) {
                               setState(() {
@@ -404,19 +584,49 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('DATE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), letterSpacing: 1)),
+                          Text(
+                            'DATE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                              letterSpacing: 1,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           InkWell(
                             onTap: _selectDate,
                             child: Container(
                               height: 48, // Compact
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor.withOpacity(0.5))),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.dividerColor.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.calendar_today, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 14,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
                                   const SizedBox(width: 8),
-                                  Text(DateFormat('dd MMM').format(_date), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text(
+                                    DateFormat('dd MMM').format(_date),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -426,11 +636,21 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Category
-                Text('CATEGORY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6), letterSpacing: 1)),
+                Text(
+                  'CATEGORY',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.6,
+                    ),
+                    letterSpacing: 1,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 CategoryPickerField(
                   selectedCategory: _category,
@@ -442,13 +662,19 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                     });
                   },
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Rule Generation Toggle
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Row(
                     children: [
                       Icon(Icons.bolt, color: AppTheme.primary, size: 20),
@@ -457,36 +683,59 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Auto-Learn Feature', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text('Generate pattern for future matches', style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                            const Text(
+                              'Auto-Learn Feature',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              'Generate pattern for future matches',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Switch(
-                        value: _createRule, 
+                        value: _createRule,
                         onChanged: (v) => setState(() => _createRule = v),
-                        activeColor: AppTheme.primary,
+                        activeThumbColor: AppTheme.primary,
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Submit
                 ElevatedButton(
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary, 
-                    foregroundColor: Colors.white, 
-                    minimumSize: const Size(double.infinity, 56), 
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 56),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('FINALIZE FORENSIC', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.5)),
+                      Text(
+                        'FINALIZE FORENSIC',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                       SizedBox(width: 10),
                       Icon(Icons.check_circle_outline, size: 18),
                     ],
@@ -514,13 +763,15 @@ class _ForensicAnnotationFormState extends State<ForensicAnnotationForm> {
           ),
           alignment: Alignment.center,
           child: Text(
-            label, 
+            label,
             style: TextStyle(
-              fontSize: 10, 
-              fontWeight: FontWeight.w900, 
-              color: isSelected ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.2),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: isSelected
+                  ? Colors.white
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.2),
               letterSpacing: 0.5,
-            )
+            ),
           ),
         ),
       ),

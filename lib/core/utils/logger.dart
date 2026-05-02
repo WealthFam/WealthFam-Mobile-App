@@ -23,16 +23,33 @@ class AppLogger {
     _log(LogLevel.debug, '🔍 DEBUG: $message');
   }
 
-  static void _log(LogLevel level, String message, [dynamic err, StackTrace? stack]) {
-    if (level.index > minLevel.index) return;
-    if (showOnlyErrors && level != LogLevel.error && level != LogLevel.warning) return;
+  static void _log(
+    LogLevel level,
+    String message, [
+    dynamic err,
+    StackTrace? stack,
+  ]) {
+    if (level.index > minLevel.index) {
+      return;
+    }
+    if (showOnlyErrors &&
+        level != LogLevel.error &&
+        level != LogLevel.warning) {
+      return;
+    }
 
-    final timestamp = DateTime.now().toIso8601String().split('T').last.substring(0, 8);
+    final timestamp = DateTime.now()
+        .toIso8601String()
+        .split('T')
+        .last
+        .substring(0, 8);
     final fullMessage = '[$timestamp] $message';
 
     if (err != null) {
       debugPrint('$fullMessage\nError: $err');
-      if (stack != null) debugPrint('Stack: $stack');
+      if (stack != null) {
+        debugPrint('Stack: $stack');
+      }
     } else {
       debugPrint(fullMessage);
     }

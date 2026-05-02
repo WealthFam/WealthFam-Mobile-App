@@ -24,11 +24,13 @@ class SocketService extends ChangeNotifier {
   SocketService(this._config, this._auth, this._notifications, this._dashboard);
 
   void connect() {
-    if (_isConnected || _auth.accessToken == null || _auth.tenantId == null) return;
+    if (_isConnected || _auth.accessToken == null || _auth.tenantId == null) {
+      return;
+    }
 
     // Build URL ultra-robustly
     var rawUrl = _config.backendUrl.trim();
-    
+
     // Parse to ensure we only have the base part (strip fragments/paths if accidentally added)
     final baseUri = Uri.parse(rawUrl);
     var host = baseUri.host;
@@ -53,7 +55,7 @@ class SocketService extends ChangeNotifier {
 
     // Convert scheme to ws/wss
     final wsScheme = scheme.contains('https') ? 'wss' : 'ws';
-    
+
     // Construct the clean final URI
     final finalWsUri = Uri(
       scheme: wsScheme,
@@ -67,10 +69,10 @@ class SocketService extends ChangeNotifier {
 
     AppLogger.info('SocketService: Connecting to $host:$port');
     AppLogger.debug('SocketService Full URL: $wsUrl');
-    
+
     try {
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-      
+
       _channel!.stream.listen(
         (message) {
           if (!_isConnected) {
@@ -108,12 +110,13 @@ class SocketService extends ChangeNotifier {
         final payload = data['payload'];
         final title = payload['title'] ?? 'WealthFam Alert';
         final body = payload['body'] ?? '';
-        
+
         // Safely parse ID which might be a string from backend
         final rawId = payload['id'];
-        final int notificationId = rawId is int 
-            ? rawId 
-            : (int.tryParse(rawId?.toString() ?? '') ?? DateTime.now().millisecondsSinceEpoch % 100000);
+        final int notificationId = rawId is int
+            ? rawId
+            : (int.tryParse(rawId?.toString() ?? '') ??
+                  DateTime.now().millisecondsSinceEpoch % 100000);
 
         // Show local notification
         _notifications.showNotification(
@@ -132,11 +135,16 @@ class SocketService extends ChangeNotifier {
 
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
-    
+
     // Bug 7 Fix: Exponential Backoff
-    final delaySeconds = (5 * (1 << _reconnectAttempts)).clamp(5, 300); // 5s, 10s, 20s... max 5m
-    AppLogger.info('SocketService: Reconnecting in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})');
-    
+    final delaySeconds = (5 * (1 << _reconnectAttempts)).clamp(
+      5,
+      300,
+    ); // 5s, 10s, 20s... max 5m
+    AppLogger.info(
+      'SocketService: Reconnecting in ${delaySeconds}s (attempt ${_reconnectAttempts + 1})',
+    );
+
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!_isConnected && _auth.isAuthenticated) {
         _reconnectAttempts++;

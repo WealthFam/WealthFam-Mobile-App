@@ -11,7 +11,9 @@ class ServerFailure extends Failure {
 }
 
 class ConnectionFailure extends Failure {
-  const ConnectionFailure([super.message = 'Connectivity error. Check your internet.']);
+  const ConnectionFailure([
+    super.message = 'Connectivity error. Check your internet.',
+  ]);
 }
 
 class CacheFailure extends Failure {
@@ -23,5 +25,7 @@ class ValidationFailure extends Failure {
 }
 
 class SecurityFailure extends Failure {
-  const SecurityFailure([super.message = 'Authentication or security error occurred']);
+  const SecurityFailure([
+    super.message = 'Authentication or security error occurred',
+  ]);
 }

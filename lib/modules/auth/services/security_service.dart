@@ -6,7 +6,7 @@ import 'package:screen_protector/screen_protector.dart';
 class SecurityService extends ChangeNotifier {
   final LocalAuthentication _auth = LocalAuthentication();
   late SharedPreferences _prefs;
-  
+
   bool _isBiometricEnabled = false;
   bool _isPrivacyEnabled = true;
   bool _isAuthenticated = false;
@@ -19,7 +19,7 @@ class SecurityService extends ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     _isBiometricEnabled = _prefs.getBool('biometric_enabled') ?? false;
     _isPrivacyEnabled = _prefs.getBool('privacy_enabled') ?? true;
-    
+
     if (_isPrivacyEnabled) {
       await ScreenProtector.protectDataLeakageOn();
     } else {
@@ -52,7 +52,8 @@ class SecurityService extends ChangeNotifier {
 
     try {
       final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
-      final bool canAuthenticate = canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
+      final bool canAuthenticate =
+          canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
 
       if (!canAuthenticate) {
         _isAuthenticated = true;
@@ -66,7 +67,7 @@ class SecurityService extends ChangeNotifier {
           biometricOnly: false,
         ),
       );
-      
+
       _isAuthenticated = didAuthenticate;
       return didAuthenticate;
     } catch (e) {

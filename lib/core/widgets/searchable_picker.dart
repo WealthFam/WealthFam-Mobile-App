@@ -29,7 +29,9 @@ class SearchablePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final displayLabel = selectedValue != null ? labelMapper(selectedValue) : (placeholder ?? 'Select...');
+    final displayLabel = selectedValue != null
+        ? labelMapper(selectedValue)
+        : (placeholder ?? 'Select...');
 
     return InkWell(
       onTap: () {
@@ -50,28 +52,45 @@ class SearchablePicker extends StatelessWidget {
         height: 48, // More compact
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: isHighlighted ? (highlightColor ?? theme.primaryColor.withOpacity(0.05)) : theme.colorScheme.surface, 
-          borderRadius: BorderRadius.circular(12), 
-          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+          color: isHighlighted
+              ? (highlightColor ?? theme.primaryColor.withValues(alpha: 0.05))
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
         ),
         child: Row(
           children: [
             if (selectedValue != null && iconMapper != null) ...[
-               Text(iconMapper!(selectedValue) ?? '', style: const TextStyle(fontSize: 16)),
-               const SizedBox(width: 8),
+              Text(
+                iconMapper!(selectedValue) ?? '',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(width: 8),
             ],
             Expanded(
               child: Text(
-                displayLabel, 
+                displayLabel,
                 style: TextStyle(
-                  fontSize: 13, 
-                  fontWeight: selectedValue != null ? FontWeight.bold : FontWeight.normal,
-                  color: isHighlighted ? theme.primaryColor : (selectedValue != null ? theme.colorScheme.onSurface : theme.colorScheme.onSurface.withOpacity(0.5)),
+                  fontSize: 13,
+                  fontWeight: selectedValue != null
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: isHighlighted
+                      ? theme.primaryColor
+                      : (selectedValue != null
+                            ? theme.colorScheme.onSurface
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              )),
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.keyboard_arrow_down, size: 18, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+            Icon(
+              Icons.keyboard_arrow_down,
+              size: 18,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
           ],
         ),
       ),
@@ -129,14 +148,30 @@ class _SearchablePickerModalState extends State<SearchablePickerModal> {
       child: Column(
         children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.dividerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(24),
             child: Row(
               children: [
-                Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 const Spacer(),
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
               ],
             ),
           ),
@@ -150,7 +185,10 @@ class _SearchablePickerModalState extends State<SearchablePickerModal> {
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: theme.colorScheme.surface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
               ),
               onChanged: _filter,
             ),
@@ -163,11 +201,19 @@ class _SearchablePickerModalState extends State<SearchablePickerModal> {
                 final item = _filteredItems[index];
                 final label = widget.labelMapper(item);
                 final icon = widget.iconMapper?.call(item);
-                
+
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                  leading: icon != null ? Text(icon, style: const TextStyle(fontSize: 20)) : const Icon(Icons.blur_on),
-                  title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 4,
+                  ),
+                  leading: icon != null
+                      ? Text(icon, style: const TextStyle(fontSize: 20))
+                      : const Icon(Icons.blur_on),
+                  title: Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   onTap: () {
                     widget.onSelected(item);
                     Navigator.pop(context);

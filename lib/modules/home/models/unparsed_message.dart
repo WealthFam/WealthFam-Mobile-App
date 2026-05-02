@@ -22,7 +22,9 @@ class UnparsedMessage {
       source: json['source'],
       sender: json['sender'],
       subject: json['subject'],
-      receivedAt: DateTime.parse(json['created_at'] ?? json['received_at']).toLocal(),
+      receivedAt: DateTime.parse(
+        json['created_at'] ?? json['received_at'],
+      ).toLocal(),
     );
   }
 

@@ -24,12 +24,13 @@ class CalendarHeatmapWidget extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    
+
     // Calculate date range
     final end = endDate ?? DateTime.now();
     final gridEndDate = DateTime(end.year, end.month, end.day);
-    final gridStartDate = startDate ?? gridEndDate.subtract(const Duration(days: 364));
-    
+    final gridStartDate =
+        startDate ?? gridEndDate.subtract(const Duration(days: 364));
+
     // Find max value for intensity scaling
     double maxVal = 0.01; // Avoid division by zero
     data.forEach((_, val) {
@@ -45,7 +46,7 @@ class CalendarHeatmapWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +62,9 @@ class CalendarHeatmapWidget extends StatelessWidget {
                 _buildDaysColumn(theme),
                 const SizedBox(width: 8),
                 Row(
-                  children: weeks.map((week) => _buildWeekColumn(context, week, maxVal)).toList(),
+                  children: weeks
+                      .map((week) => _buildWeekColumn(context, week, maxVal))
+                      .toList(),
                 ),
               ],
             ),
@@ -80,7 +83,9 @@ class CalendarHeatmapWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
       ),
       child: const Center(
         child: Column(
@@ -88,7 +93,10 @@ class CalendarHeatmapWidget extends StatelessWidget {
           children: [
             Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey),
             SizedBox(height: 12),
-            Text("No spending activity recorded", style: TextStyle(color: Colors.grey)),
+            Text(
+              "No spending activity recorded",
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       ),
@@ -98,13 +106,13 @@ class CalendarHeatmapWidget extends StatelessWidget {
   List<List<DateTime?>> _generateWeeks(DateTime start, DateTime end) {
     List<List<DateTime?>> weeks = [];
     DateTime current = start;
-    
+
     // Align start to the beginning of the week (Monday)
     // In our grid, row 0 = Mon, row 6 = Sun
     int startOffset = current.weekday - 1; // 0 for Mon, 6 for Sun
-    
+
     List<DateTime?> currentWeek = List.filled(7, null);
-    
+
     // First partial week
     for (int i = startOffset; i < 7; i++) {
       currentWeek[i] = current;
@@ -112,7 +120,7 @@ class CalendarHeatmapWidget extends StatelessWidget {
       if (current.isAfter(end)) break;
     }
     weeks.add(currentWeek);
-    
+
     while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
       currentWeek = List.filled(7, null);
       for (int i = 0; i < 7; i++) {
@@ -122,17 +130,24 @@ class CalendarHeatmapWidget extends StatelessWidget {
       }
       weeks.add(currentWeek);
     }
-    
+
     return weeks;
   }
 
   Widget _buildMonthsHeader(DateTime start, DateTime end) {
-    final rangeText = "${DateFormat('MMM yyyy').format(start)} - ${DateFormat('MMM yyyy').format(end)}";
+    final rangeText =
+        "${DateFormat('MMM yyyy').format(start)} - ${DateFormat('MMM yyyy').format(end)}";
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text("Fiscal Pulse", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        Text(rangeText, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+        const Text(
+          "Fiscal Pulse",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        Text(
+          rangeText,
+          style: const TextStyle(color: Colors.grey, fontSize: 10),
+        ),
       ],
     );
   }
@@ -140,16 +155,30 @@ class CalendarHeatmapWidget extends StatelessWidget {
   Widget _buildDaysColumn(ThemeData theme) {
     const days = ['M', '', 'W', '', 'F', '', 'S'];
     return Column(
-      children: days.map((d) => Container(
-        height: 12,
-        margin: const EdgeInsets.symmetric(vertical: 0.8),
-        alignment: Alignment.centerLeft,
-        child: Text(d, style: TextStyle(fontSize: 8, color: theme.colorScheme.onSurface.withOpacity(0.4))),
-      )).toList(),
+      children: days
+          .map(
+            (d) => Container(
+              height: 12,
+              margin: const EdgeInsets.symmetric(vertical: 0.8),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                d,
+                style: TextStyle(
+                  fontSize: 8,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
-  Widget _buildWeekColumn(BuildContext context, List<DateTime?> week, double maxVal) {
+  Widget _buildWeekColumn(
+    BuildContext context,
+    List<DateTime?> week,
+    double maxVal,
+  ) {
     return Column(
       children: week.map((day) => _buildDayTile(context, day, maxVal)).toList(),
     );
@@ -157,24 +186,33 @@ class CalendarHeatmapWidget extends StatelessWidget {
 
   Widget _buildDayTile(BuildContext context, DateTime? day, double maxVal) {
     if (day == null) {
-      return Container(width: 12, height: 12, margin: const EdgeInsets.all(0.8));
+      return Container(
+        width: 12,
+        height: 12,
+        margin: const EdgeInsets.all(0.8),
+      );
     }
-    
+
     final dateStr = DateFormat('yyyy-MM-dd').format(day);
     final amount = data[dateStr]?.toDouble() ?? 0.0;
-    
+
     // Intensity level (0 to 4)
     int level = 0;
     if (amount > 0) {
       final ratio = amount / maxVal;
-      if (ratio < 0.2) level = 1;
-      else if (ratio < 0.5) level = 2;
-      else if (ratio < 0.8) level = 3;
-      else level = 4;
+      if (ratio < 0.2) {
+        level = 1;
+      } else if (ratio < 0.5) {
+        level = 2;
+      } else if (ratio < 0.8) {
+        level = 3;
+      } else {
+        level = 4;
+      }
     }
-    
+
     final color = _getIntensityColor(context, level);
-    
+
     return Tooltip(
       message: '${DateFormat('MMM d, yyyy').format(day)}: $amount',
       child: Container(
@@ -192,16 +230,25 @@ class CalendarHeatmapWidget extends StatelessWidget {
   Color _getIntensityColor(BuildContext context, int level) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
-    if (level == 0) return isDark ? Colors.grey.withOpacity(0.1) : Colors.grey.withOpacity(0.1);
-    
+
+    if (level == 0) {
+      return isDark
+          ? Colors.grey.withValues(alpha: 0.1)
+          : Colors.grey.withValues(alpha: 0.1);
+    }
+
     final baseColor = AppTheme.primary;
     switch (level) {
-      case 1: return baseColor.withOpacity(0.2);
-      case 2: return baseColor.withOpacity(0.4);
-      case 3: return baseColor.withOpacity(0.7);
-      case 4: return baseColor;
-      default: return Colors.transparent;
+      case 1:
+        return baseColor.withValues(alpha: 0.2);
+      case 2:
+        return baseColor.withValues(alpha: 0.4);
+      case 3:
+        return baseColor.withValues(alpha: 0.7);
+      case 4:
+        return baseColor;
+      default:
+        return Colors.transparent;
     }
   }
 
@@ -211,15 +258,18 @@ class CalendarHeatmapWidget extends StatelessWidget {
       children: [
         const Text("Less", style: TextStyle(fontSize: 9, color: Colors.grey)),
         const SizedBox(width: 4),
-        ...List.generate(5, (i) => Container(
-          width: 12,
-          height: 12,
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          decoration: BoxDecoration(
-            color: _getIntensityColor(context, i),
-            borderRadius: BorderRadius.circular(2.5),
+        ...List.generate(
+          5,
+          (i) => Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: _getIntensityColor(context, i),
+              borderRadius: BorderRadius.circular(2.5),
+            ),
           ),
-        )),
+        ),
         const SizedBox(width: 4),
         const Text("More", style: TextStyle(fontSize: 9, color: Colors.grey)),
       ],

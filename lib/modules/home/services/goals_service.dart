@@ -14,7 +14,7 @@ class GoalsService extends ChangeNotifier {
   bool _isLoading = false;
 
   String? _error;
-  
+
   List<dynamic> get goals => _goals;
   List<dynamic> get expenseGroups => _expenseGroups;
   bool get isLoading => _isLoading;
@@ -29,7 +29,7 @@ class GoalsService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final cachedGoals = prefs.getString('cached_goals');
       final cachedGroups = prefs.getString('cached_expense_groups');
-      
+
       if (cachedGoals != null) {
         _goals = jsonDecode(cachedGoals);
       }
@@ -54,7 +54,10 @@ class GoalsService extends ChangeNotifier {
   Future<void> _saveGroupsCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_expense_groups', jsonEncode(_expenseGroups));
+      await prefs.setString(
+        'cached_expense_groups',
+        jsonEncode(_expenseGroups),
+      );
     } catch (e) {
       debugPrint('GoalsService: Error saving groups cache: $e');
     }
