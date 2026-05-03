@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/core/widgets/searchable_category_picker.dart';
 import 'package:mobile_app/core/widgets/searchable_picker.dart';
 import 'package:mobile_app/core/widgets/transaction_settings_sheet.dart';
@@ -441,7 +442,9 @@ class _ExpensesTabState extends State<ExpensesTab> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute<void>(
-            builder: (_) => TransactionDetailScreen(transaction: txn),
+            builder: (_) => AppShell(
+              body: TransactionDetailScreen(transaction: txn),
+            ),
           ),
         ),
         onLongPress: () => TransactionSettingsSheet.show(context, txn),

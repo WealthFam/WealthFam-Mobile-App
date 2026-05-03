@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:mobile_app/modules/home/models/transaction_category.dart';
 import 'package:mobile_app/modules/home/screens/manage_group_transactions_screen.dart';
@@ -289,8 +290,10 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                             final result = await Navigator.push<bool>(
                               context,
                               MaterialPageRoute<bool>(
-                                builder: (_) => ManageGroupTransactionsScreen(
-                                  group: _group,
+                                builder: (_) => AppShell(
+                                  body: ManageGroupTransactionsScreen(
+                                    group: _group,
+                                  ),
                                 ),
                               ),
                             );

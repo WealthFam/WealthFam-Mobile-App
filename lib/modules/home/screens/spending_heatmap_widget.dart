@@ -49,7 +49,7 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
   }
 
   Future<void> _fetchHeatmapData() async {
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -101,7 +101,7 @@ class _SpendingHeatmapWidgetState extends State<SpendingHeatmapWidget> {
     if (_heatmapData.isEmpty) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
+      if (!mounted) return;
 
       if (_heatmapData.length == 1) {
         final p = _heatmapData[0] as Map<String, dynamic>;

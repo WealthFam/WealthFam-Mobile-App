@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/theme/app_theme.dart';
+import 'package:mobile_app/core/widgets/app_shell.dart';
 import 'package:mobile_app/modules/auth/services/auth_service.dart';
 import 'package:provider/provider.dart';
 
@@ -76,7 +77,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      drawer: const AppDrawer(),
       appBar: AppBar(
+        leading: const DrawerMenuButton(),
         title: const Text('Server Configuration'),
         backgroundColor: Colors.transparent,
       ),

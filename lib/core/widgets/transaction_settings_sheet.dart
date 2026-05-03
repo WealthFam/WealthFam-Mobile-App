@@ -86,7 +86,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
     final auth = context.read<AuthService>();
     try {
       final response = await http.get(
-        Uri.parse('${config.backendUrl}/api/v1/finance/accounts'),
+        Uri.parse('${config.backendUrl}/api/v1/mobile/accounts'),
         headers: {'Authorization': 'Bearer ${auth.accessToken}'},
       );
       if (response.statusCode == 200) {
@@ -342,7 +342,7 @@ class _TransactionSettingsSheetState extends State<TransactionSettingsSheet> {
 
       // 2. Update Flags (Transfer/Exclude)
       final url = Uri.parse(
-        '${config.backendUrl}/api/v1/finance/transactions/${widget.transaction.id}',
+        '${config.backendUrl}/api/v1/mobile/transactions/${widget.transaction.id}',
       );
       final response = await http.put(
         url,

@@ -544,9 +544,11 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute<void>(
-                    builder: (context) => FundDetailScreen(
-                      schemeCode: h.schemeCode,
-                      schemeName: h.schemeName,
+                    builder: (context) => AppShell(
+                      body: FundDetailScreen(
+                        schemeCode: h.schemeCode,
+                        schemeName: h.schemeName,
+                      ),
                     ),
                   ),
                 );
@@ -954,7 +956,6 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
 
   Widget _buildPerformanceChart(BuildContext context) {
     final fundsService = context.watch<FundsService>();
-    final dashboardService = context.watch<DashboardService>();
     final theme = Theme.of(context);
 
     if (fundsService.isChartLoading && fundsService.timeline.isEmpty) {
@@ -966,13 +967,19 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
 
     if (fundsService.timeline.isEmpty) return const SizedBox.shrink();
 
+    final firstPoint = fundsService.timeline.first;
+    final firstPortfolioValue = (firstPoint['value'] as num).toDouble();
+
     final points = fundsService.timeline
         .map((e) {
           try {
             final date = DateTime.parse(e['date'] as String).toLocal();
-            final value =
-                (e['value'] as num).toDouble() / dashboardService.maskingFactor;
-            return FlSpot(date.millisecondsSinceEpoch.toDouble(), value);
+            final value = (e['value'] as num).toDouble();
+            // Normalize to 100-baseline
+            final normalized = firstPortfolioValue > 0 
+                ? (value / firstPortfolioValue) * 100 
+                : 100.0;
+            return FlSpot(date.millisecondsSinceEpoch.toDouble(), normalized);
           } catch (e) {
             return null;
           }
@@ -981,25 +988,33 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
         .toList()
       ..sort((a, b) => a.x.compareTo(b.x));
 
-    final benchmarkPoints = fundsService.timeline
-        .map((e) {
+    final benchmarkPoints = <FlSpot>[];
+    if (fundsService.timeline.isNotEmpty) {
+      double? firstNifty;
+      for (var e in fundsService.timeline) {
+        final bm = e['benchmarks'] as Map<String, dynamic>?;
+        final niftyValue = bm?['120716'] as num?;
+        if (niftyValue != null) {
+          firstNifty = niftyValue.toDouble();
+          break;
+        }
+      }
+
+      if (firstNifty != null) {
+        for (var e in fundsService.timeline) {
           try {
             final date = DateTime.parse(e['date'] as String).toLocal();
             final bm = e['benchmarks'] as Map<String, dynamic>?;
             final niftyValue = bm?['120716'] as num?;
-            if (niftyValue == null) return null;
+            if (niftyValue == null) continue;
 
-            // Normalize Nifty to match portfolio scale at the start of the chart
-            // (Basic normalization: Relative % change)
-            return FlSpot(date.millisecondsSinceEpoch.toDouble(),
-                niftyValue.toDouble() / dashboardService.maskingFactor);
-          } catch (e) {
-            return null;
-          }
-        })
-        .whereType<FlSpot>()
-        .toList()
-      ..sort((a, b) => a.x.compareTo(b.x));
+            final normalized = (niftyValue.toDouble() / firstNifty) * 100;
+            benchmarkPoints.add(FlSpot(date.millisecondsSinceEpoch.toDouble(), normalized));
+          } catch (_) {}
+        }
+      }
+    }
+    benchmarkPoints.sort((a, b) => a.x.compareTo(b.x));
 
     if (points.isEmpty) return const SizedBox.shrink();
 
@@ -1025,13 +1040,14 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
                 touchTooltipData: LineTouchTooltipData(
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((LineBarSpot touchedSpot) {
+                      final isFund = touchedSpot.barIndex == 0;
                       final date = DateTime.fromMillisecondsSinceEpoch(
                         touchedSpot.x.toInt(),
                       );
                       return LineTooltipItem(
-                        '${DateFormat('MMM d').format(date)}\n${NumberFormat.currency(symbol: dashboardService.currencySymbol, decimalDigits: 0).format(touchedSpot.y)}',
-                        const TextStyle(
-                          color: Colors.white,
+                        '${DateFormat('MMM d').format(date)}\n${isFund ? 'Portfolio' : 'Nifty'}: ${touchedSpot.y.toStringAsFixed(1)}%',
+                        TextStyle(
+                          color: isFund ? AppTheme.primary : Colors.orange,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
                         ),

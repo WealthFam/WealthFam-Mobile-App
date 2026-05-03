@@ -348,7 +348,7 @@ class SyncTaskHandler extends TaskHandler {
         try {
           final response = await http
               .post(
-                Uri.parse('$url/api/v1/ingestion/sms'),
+                Uri.parse('$url/api/v1/mobile/ingestion/sms'),
                 headers: {
                   'Authorization': 'Bearer $token',
                   'Content-Type': 'application/json',

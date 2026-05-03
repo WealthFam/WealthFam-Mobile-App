@@ -115,8 +115,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       drawer: const AppDrawer(),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         leading: const DrawerMenuButton(),
         title: const Text('Settings'),
