@@ -37,10 +37,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   final ScrollController _scrollController = ScrollController();
   DashboardService? _dashboard;
   final Set<String> _expandedBudgetNodes = {};
+  late NumberFormat _currencyFormat;
 
   @override
   void initState() {
     super.initState();
+    final dashboard = context.read<DashboardService>();
+    _currencyFormat = NumberFormat.currency(
+      symbol: dashboard.currencySymbol,
+      decimalDigits: 0,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _dashboard = context.read<DashboardService>();
       _dashboard?.addListener(_onFiltersChanged);
@@ -186,14 +192,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     final dashboard = context.watch<DashboardService>();
+    final maskingFactor = dashboard.maskingFactor;
     final theme = Theme.of(context);
-    final currencyFormat = NumberFormat.currency(
-      symbol: dashboard.currencySymbol,
-      decimalDigits: 0,
-    );
 
     String formatAmount(Decimal amount) {
-      return currencyFormat.format(amount.toDouble() / dashboard.maskingFactor);
+      return _currencyFormat.format(amount.toDouble() / maskingFactor);
     }
 
     return Scaffold(

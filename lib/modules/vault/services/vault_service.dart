@@ -163,7 +163,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString(_cacheKey);
       if (cachedJson != null) {
-        final List<dynamic> data = jsonDecode(cachedJson) as List<dynamic>;
+        final List<dynamic> data = (jsonDecode(cachedJson) as List<dynamic>?) ?? [];
         _documents = data.map((e) => VaultDocument.fromJson(e as Map<String, dynamic>)).toList();
         notifyListeners();
       }
@@ -228,7 +228,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       ),
       onSuccess: (body) async {
         final Map<String, dynamic> responseData = jsonDecode(body as String) as Map<String, dynamic>;
-        final List<dynamic> itemsData = responseData['data'] as List<dynamic>;
+        final List<dynamic> itemsData = (responseData['data'] as List<dynamic>?) ?? [];
         final docs = itemsData.map((e) => VaultDocument.fromJson(e as Map<String, dynamic>)).toList();
         _documents = docs;
         _error = null;
@@ -268,7 +268,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       onSuccess: (body) async {
         final Map<String, dynamic> responseData =
             jsonDecode(body as String) as Map<String, dynamic>;
-        final List<dynamic> itemsData = responseData['data'] as List<dynamic>;
+        final List<dynamic> itemsData = (responseData['data'] as List<dynamic>?) ?? [];
         return itemsData
             .map((e) => VaultDocument.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -294,7 +294,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       onSuccess: (body) async {
         final Map<String, dynamic> responseData =
             jsonDecode(body as String) as Map<String, dynamic>;
-        final List<dynamic> itemsData = responseData['data'] as List<dynamic>;
+        final List<dynamic> itemsData = (responseData['data'] as List<dynamic>?) ?? [];
         return itemsData
             .map((e) => VaultDocument.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -509,7 +509,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
       final response = await http.get(url, headers: authHeaders);
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body) as Map<String, dynamic>;
-        final List<dynamic> data = responseData['data'] as List<dynamic>;
+        final List<dynamic> data = (responseData['data'] as List<dynamic>?) ?? [];
         for (var itemRaw in data) {
           final item = itemRaw as Map<String, dynamic>;
           if (item['is_folder'] == true &&
@@ -645,7 +645,7 @@ class VaultService extends ChangeNotifier with NetworkResilience {
 
     return await callWithResilience<List<dynamic>>(
       call: () => http.get(url, headers: authHeaders),
-      onSuccess: (body) => (jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>,
+      onSuccess: (body) => ((jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>?) ?? [],
     );
   }
 }

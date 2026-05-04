@@ -22,11 +22,17 @@ class MutualFundsScreen extends StatefulWidget {
 class _MutualFundsScreenState extends State<MutualFundsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late NumberFormat _currencyFormat;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    final dashboard = context.read<DashboardService>();
+    _currencyFormat = NumberFormat.currency(
+      symbol: dashboard.currencySymbol,
+      decimalDigits: 0,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FundsService>().fetchFunds();
     });
@@ -41,17 +47,13 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
   @override
   Widget build(BuildContext context) {
     final fundsService = context.watch<FundsService>();
-    final dashboardService = context.watch<DashboardService>();
+    final dashboard = context.watch<DashboardService>();
+    final maskingFactor = dashboard.maskingFactor;
     final theme = Theme.of(context);
 
-    final currencyFormat = NumberFormat.currency(
-      symbol: dashboardService.currencySymbol,
-      decimalDigits: 0,
-    );
-
     String formatAmount(Decimal amount) {
-      return currencyFormat.format(
-        amount.toDouble() / dashboardService.maskingFactor,
+      return _currencyFormat.format(
+        amount.toDouble() / maskingFactor,
       );
     }
 
@@ -84,7 +86,7 @@ class _MutualFundsScreenState extends State<MutualFundsScreen>
                 : _buildSliverContent(
                     context,
                     fundsService.portfolio!,
-                    dashboardService,
+                    dashboard,
                     formatAmount,
                   ),
       ),

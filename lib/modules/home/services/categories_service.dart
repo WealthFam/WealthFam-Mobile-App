@@ -11,6 +11,17 @@ class CategoriesService extends ChangeNotifier {
 
   CategoriesService(this._config, this._auth) {
     _loadCache();
+    _config.addListener(_onConfigChanged);
+  }
+
+  void _onConfigChanged() {
+    fetchCategories(force: true);
+  }
+
+  @override
+  void dispose() {
+    _config.removeListener(_onConfigChanged);
+    super.dispose();
   }
   final AppConfig _config;
   final AuthService _auth;
@@ -26,7 +37,7 @@ class CategoriesService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString('cached_categories');
       if (cachedJson != null) {
-        final data = jsonDecode(cachedJson) as List<dynamic>;
+        final data = (jsonDecode(cachedJson) as List<dynamic>?) ?? [];
         _categories = data.map((e) => TransactionCategory.fromJson(e as Map<String, dynamic>)).toList();
         notifyListeners();
       }
@@ -62,7 +73,7 @@ class CategoriesService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List<dynamic>;
+        final data = (jsonDecode(response.body) as List<dynamic>?) ?? [];
         _categories = data.map((e) => TransactionCategory.fromJson(e as Map<String, dynamic>)).toList();
         await _saveCache();
       }

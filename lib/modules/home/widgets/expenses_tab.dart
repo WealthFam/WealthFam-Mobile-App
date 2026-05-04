@@ -27,6 +27,7 @@ class ExpensesTab extends StatefulWidget {
 
 class _ExpensesTabState extends State<ExpensesTab> {
   final List<RecentTransaction> _transactions = [];
+  final Set<String> _transactionIds = {};
   bool _isLoading = false;
   bool _hasMore = true;
   int _page = 1;
@@ -42,8 +43,10 @@ class _ExpensesTabState extends State<ExpensesTab> {
   @override
   void initState() {
     super.initState();
-    _fetchTransactions(reset: true);
     _fetchAccounts();
+    // Initial fetch handled by build's check or explicitly here
+    _fetchTransactions(reset: true);
+    
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200) {
@@ -108,7 +111,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final items = (data['data'] as List<dynamic>? ?? [])
+        final List<RecentTransaction> items = (data['data'] as List<dynamic>? ?? [])
             .map((i) => RecentTransaction.fromJson(i as Map<String, dynamic>))
             .where((t) => !t.isHidden)
             .toList();
@@ -116,8 +119,22 @@ class _ExpensesTabState extends State<ExpensesTab> {
 
         if (mounted) {
           setState(() {
-            if (reset) _transactions.clear();
-            _transactions.addAll(items);
+            if (reset) {
+              _transactions.clear();
+              _transactionIds.clear();
+            }
+            
+            for (final item in items) {
+              // Composite key for content-based deduplication (last line of defense)
+              final contentKey = '${item.amount}_${item.date.day}_${item.date.month}_${item.date.year}_${item.description.trim()}';
+              
+              if (!_transactionIds.contains(item.id) && !_transactionIds.contains(contentKey)) {
+                _transactions.add(item);
+                _transactionIds.add(item.id);
+                _transactionIds.add(contentKey);
+              }
+            }
+            
             _hasMore = nextPage != null;
             _page++;
           });

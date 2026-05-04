@@ -51,8 +51,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final triageCount =
-        context.watch<DashboardService>().data?.pendingTriageCount ?? 0;
+    final dashboard = context.watch<DashboardService>();
+    final triageCount = dashboard.data?.pendingTriageCount ?? 0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -63,55 +63,68 @@ class _TransactionsScreenState extends State<TransactionsScreen>
           'Transactions',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
-        actions: const [
-          SizedBox(width: 8),
+        actions: [
+          if (dashboard.members.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.people_outline),
+              initialValue: dashboard.selectedMemberId,
+              onSelected: (val) => dashboard.setMember(val == 'all' ? null : val),
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem(value: 'all', child: Text('All Family')),
+                ...dashboard.members.map(
+                  (mRaw) {
+                    final m = mRaw as Map<String, dynamic>;
+                    return PopupMenuItem(
+                      value: m['id'].toString(),
+                      child: Text(m['name'] as String? ?? 'Unknown'),
+                    );
+                  },
+                ),
+              ],
+            ),
+          const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(110 + (triageCount > 0 ? 0 : 0)), // Standard TabBar (48) + Avatar Row (60)
-          child: Column(
-            children: [
-              _buildMemberAvatarRow(context),
-              TabBar(
-                controller: _tabController,
-                onTap: (index) {
-                  if (_tabController.index != index) {
-                    HapticFeedback.selectionClick();
-                  }
-                },
-                indicatorSize: TabBarIndicatorSize.label,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                tabs: [
-                  const Tab(text: 'Expenses'),
-                  Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Triage'),
-                        if (triageCount > 0) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.error,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              triageCount.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+          preferredSize: const Size.fromHeight(48), // Just the TabBar height
+          child: TabBar(
+            controller: _tabController,
+            onTap: (index) {
+              if (_tabController.index != index) {
+                HapticFeedback.selectionClick();
+              }
+            },
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            tabs: [
+              const Tab(text: 'Expenses'),
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Triage'),
+                    if (triageCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.error,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          triageCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -144,92 +157,5 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     );
   }
 
-  Widget _buildMemberAvatarRow(BuildContext context) {
-    final dashboard = context.watch<DashboardService>();
-    final theme = Theme.of(context);
 
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          _buildMemberAvatar(
-            context,
-            'Family',
-            null,
-            Icons.groups_outlined,
-            dashboard.selectedMemberId == null,
-          ),
-          ...dashboard.members.map((m) {
-            final member = m as Map<String, dynamic>;
-            final id = member['id'] as String?;
-            final isSelected = dashboard.selectedMemberId == id;
-            return _buildMemberAvatar(
-              context,
-              member['name'] as String,
-              id,
-              null,
-              isSelected,
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMemberAvatar(
-    BuildContext context,
-    String name,
-    String? id,
-    IconData? icon,
-    bool isSelected,
-  ) {
-    final dashboard = context.read<DashboardService>();
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: GestureDetector(
-        onTap: () {
-          if (!isSelected) {
-            HapticFeedback.lightImpact();
-            dashboard.setMember(id);
-          }
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? theme.colorScheme.primary : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-              child: CircleAvatar(
-                radius: 14,
-                backgroundColor: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                child: icon != null
-                    ? Icon(icon, size: 14, color: isSelected ? Colors.white : theme.disabledColor)
-                    : Text(
-                        name[0].toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.white : theme.disabledColor,
-                        ),
-                      ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

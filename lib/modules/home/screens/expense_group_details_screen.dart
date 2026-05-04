@@ -241,14 +241,17 @@ class _ExpenseGroupDetailsScreenState extends State<ExpenseGroupDetailsScreen> {
                               color: AppTheme.primary,
                             ),
                             const SizedBox(width: 12),
-                            Text(
-                              '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'] as String)) : "Start"} — ${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'] as String)) : "End"}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
+                              Flexible(
+                                child: Text(
+                                  '${group['start_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['start_date'] as String)) : "Start"} — ${group['end_date'] != null ? DateFormat('MMM d, yyyy').format(DateTime.parse(group['end_date'] as String)) : "End"}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),

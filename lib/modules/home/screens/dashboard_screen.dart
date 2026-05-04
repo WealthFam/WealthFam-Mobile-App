@@ -32,9 +32,21 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  late NumberFormat _currencyFormat;
+  late NumberFormat _currencyFormatWithDecimals;
+
   @override
   void initState() {
     super.initState();
+    final dashboard = context.read<DashboardService>();
+    _currencyFormat = NumberFormat.currency(
+      symbol: dashboard.currencySymbol,
+      decimalDigits: 0,
+    );
+    _currencyFormatWithDecimals = NumberFormat.currency(
+      symbol: dashboard.currencySymbol,
+      decimalDigits: 2,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Single call to load family overview data for current month
       context.read<DashboardService>().refresh();
@@ -46,15 +58,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final dashboard = context.watch<DashboardService>();
     final theme = Theme.of(context);
-    final currencyFormat = NumberFormat.currency(
-      symbol: dashboard.currencySymbol,
-      decimalDigits: 0,
-    );
+    final maskingFactor = dashboard.maskingFactor;
 
     // Helper to format with masking
     String formatAmount(Decimal amount) {
-      final numericAmount = amount.toDouble();
-      return currencyFormat.format(numericAmount / dashboard.maskingFactor);
+      return _currencyFormat.format(amount.toDouble() / maskingFactor);
     }
 
     return Scaffold(

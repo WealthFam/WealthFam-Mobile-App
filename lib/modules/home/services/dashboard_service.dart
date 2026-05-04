@@ -21,8 +21,32 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     var now = DateTime.now();
     _selectedMonth = now.month;
     _selectedYear = now.year;
+    
+    // Listen to config changes (e.g. backend URL change)
+    _config.addListener(_onConfigChanged);
+    
     refreshMembers();
     loadSettings();
+  }
+
+  void _onConfigChanged() {
+    AppLogger.info('DashboardService: AppConfig changed, refreshing data...');
+    _members = [];
+    _data = null;
+    _selectedMemberId = null;
+    notifyListeners();
+    
+    // Verify auth on new server
+    _auth.checkStatus();
+    
+    refreshMembers();
+    refresh();
+  }
+
+  @override
+  void dispose() {
+    _config.removeListener(_onConfigChanged);
+    super.dispose();
   }
   final AppConfig _config;
   final AuthService _auth;
@@ -157,7 +181,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         Uri.parse('${_config.backendUrl}/api/v1/mobile/members'),
         headers: {'Authorization': 'Bearer ${_auth.accessToken}'},
       ),
-      onSuccess: (body) => jsonDecode(body as String) as List<dynamic>,
+      onSuccess: (body) => (jsonDecode(body as String) as List<dynamic>?) ?? [],
     );
 
     result.fold(
@@ -220,7 +244,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     result.fold((failure) => _error = failure.message, (data) {
       final summary = DashboardSummary.fromJson(data['summary'] as Map<String, dynamic>);
       final budget = BudgetSummary.fromJson(data['budget'] as Map<String, dynamic>);
-      final txns = (data['recent_transactions'] as List)
+      final txns = ((data['recent_transactions'] as List?) ?? [])
           .map((i) => RecentTransaction.fromJson(i as Map<String, dynamic>))
           .where((t) => !t.isHidden)
           .toList();
@@ -249,10 +273,10 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     );
 
     result.fold((failure) => _error = failure.message, (data) {
-      final spendingTrend = (data['spending_trend'] as List)
+      final spendingTrend = ((data['spending_trend'] as List?) ?? [])
           .map((i) => SpendingTrendItem.fromJson(i as Map<String, dynamic>))
           .toList();
-      final monthWiseTrend = (data['month_wise_trend'] as List)
+      final monthWiseTrend = ((data['month_wise_trend'] as List?) ?? [])
           .map((i) => MonthTrendItem.fromJson(i as Map<String, dynamic>))
           .toList();
 
@@ -277,7 +301,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
     );
 
     result.fold((failure) => _error = failure.message, (data) {
-      final categories = (data['category_distribution'] as List)
+      final categories = ((data['category_distribution'] as List?) ?? [])
           .map((i) => CategoryPieItem.fromJson(i as Map<String, dynamic>))
           .toList();
 
@@ -315,7 +339,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ).replace(queryParameters: _getQueryParams()),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body as String) as List<dynamic>,
+      onSuccess: (body) => (jsonDecode(body as String) as List<dynamic>?) ?? [],
     );
 
     result.fold((failure) => _error = failure.message, (data) {
@@ -373,7 +397,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         Uri.parse('${_config.backendUrl}/api/v1/mobile/accounts'),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => (jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>,
+      onSuccess: (body) => ((jsonDecode(body as String) as Map<String, dynamic>)['data'] as List<dynamic>?) ?? [],
     );
   }
 
@@ -395,7 +419,7 @@ class DashboardService extends ChangeNotifier with NetworkResilience {
         ),
         headers: _getHeaders(),
       ),
-      onSuccess: (body) => jsonDecode(body as String) as List<dynamic>,
+      onSuccess: (body) => (jsonDecode(body as String) as List<dynamic>?) ?? [],
     );
   }
 
